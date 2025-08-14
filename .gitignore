@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local data and backups (do not commit)
+data/
+backup/
+*.db
+*.db.*
+cookies.txt
+latest-dev.log
