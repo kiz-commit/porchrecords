@@ -1,0 +1,26 @@
+{
+  "ITEM_VARIATION_ID_15": {
+    "isPreorder": true,
+    "preorderReleaseDate": "2024-12-15",
+    "preorderQuantity": 0,
+    "preorderMaxQuantity": 50
+  },
+  "ITEM_VARIATION_ID_16": {
+    "isPreorder": true,
+    "preorderReleaseDate": "2024-12-20",
+    "preorderQuantity": 0,
+    "preorderMaxQuantity": 30
+  },
+  "ITEM_VARIATION_ID_17": {
+    "isPreorder": true,
+    "preorderReleaseDate": "2025-01-10",
+    "preorderQuantity": 0,
+    "preorderMaxQuantity": 25
+  },
+  "WLVTWLJDBY6Y45JKKXPA3FDL": {
+    "isPreorder": true,
+    "preorderReleaseDate": "2025-02-01",
+    "preorderQuantity": 0,
+    "preorderMaxQuantity": 3
+  }
+}

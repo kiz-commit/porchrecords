@@ -1,0 +1,69 @@
+[
+  {
+    "id": "voucher-1753921468942",
+    "code": "MFQFH05T66IZ",
+    "amount": 50,
+    "originalAmount": 50,
+    "balance": 0,
+    "status": "USED",
+    "customerEmail": "test@example.com",
+    "customerName": "Test User",
+    "orderId": "test-123",
+    "usageHistory": [
+      {
+        "orderId": "order-1753921471341",
+        "amount": 50,
+        "date": "2025-07-31T00:24:31.341Z"
+      }
+    ],
+    "createdAt": "2025-07-31T00:24:28.942Z",
+    "expiresAt": "2026-07-31T00:24:28.942Z",
+    "isExpired": false
+  },
+  {
+    "id": "voucher-1753921474115",
+    "code": "KEWWM1H7AV5E",
+    "amount": 100,
+    "originalAmount": 100,
+    "balance": 10,
+    "status": "ACTIVE",
+    "customerEmail": "test2@example.com",
+    "customerName": "Test User 2",
+    "orderId": "test-456",
+    "usageHistory": [
+      {
+        "orderId": "order-1753921476476",
+        "amount": 30,
+        "date": "2025-07-31T00:24:36.476Z"
+      },
+      {
+        "orderId": "order-1753921478970",
+        "amount": 50,
+        "date": "2025-07-31T00:24:38.970Z"
+      },
+      {
+        "orderId": "in-store-1754825390007",
+        "amount": 10,
+        "date": "2025-08-10T11:29:50.024Z",
+        "type": "IN_STORE",
+        "processedBy": "Admin"
+      }
+    ],
+    "createdAt": "2025-07-31T00:24:34.115Z",
+    "expiresAt": "2026-07-31T00:24:34.115Z",
+    "isExpired": false
+  },
+  {
+    "id": "voucher-1753924047839",
+    "code": "FBT7ELLV7741",
+    "amount": 20,
+    "balance": 20,
+    "status": "ACTIVE",
+    "customerEmail": "kierankellett@gmail.com",
+    "customerName": "Kieran",
+    "purchasedAt": "2025-07-31T01:07:27.840Z",
+    "expiresAt": "2025-11-16",
+    "usageHistory": [],
+    "createdAt": "2025-07-31T01:07:27.840Z"
+  }
+]

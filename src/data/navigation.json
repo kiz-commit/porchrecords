@@ -1,0 +1,81 @@
+[
+  {
+    "id": "home",
+    "label": "Home",
+    "href": "/",
+    "order": 1,
+    "isActive": false
+  },
+  {
+    "id": "store",
+    "label": "Store",
+    "href": "/store",
+    "order": 2,
+    "isActive": true
+  },
+  {
+    "id": "shows",
+    "label": "Shows",
+    "href": "/shows",
+    "order": 3,
+    "isActive": true
+  },
+  {
+    "id": "studio",
+    "label": "Studio",
+    "href": "/studio",
+    "order": 4,
+    "isActive": true,
+    "children": [
+      {
+        "id": "child_1752362324723",
+        "label": "Wine Time",
+        "href": "/wine-time",
+        "order": 1,
+        "isActive": false
+      },
+      {
+        "id": "child_1752546401514",
+        "label": "Vanessa",
+        "href": "/vannesa",
+        "order": 2,
+        "isActive": false
+      },
+      {
+        "id": "child_1752362930919",
+        "label": "New Child",
+        "href": "/new-child",
+        "order": 3,
+        "isActive": false
+      },
+      {
+        "id": "child_1753747885778",
+        "label": "New Child",
+        "href": "/new-child2",
+        "order": 4,
+        "isActive": true
+      }
+    ]
+  },
+  {
+    "id": "nav_1752362389255",
+    "label": "DJS",
+    "href": "/djs",
+    "order": 5,
+    "isActive": true
+  },
+  {
+    "id": "about",
+    "label": "About",
+    "href": "/about",
+    "order": 6,
+    "isActive": true
+  },
+  {
+    "id": "contact",
+    "label": "Contact",
+    "href": "/contact",
+    "order": 7,
+    "isActive": false
+  }
+]

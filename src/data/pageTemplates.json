@@ -1,0 +1,460 @@
+{
+  "categories": [
+    {
+      "id": "general",
+      "name": "General Pages",
+      "description": "Basic page templates for common use cases",
+      "icon": "📄"
+    },
+    {
+      "id": "studio",
+      "name": "Studio & Music",
+      "description": "Templates for studio pages and music-related content",
+      "icon": "🎵"
+    },
+    {
+      "id": "shows",
+      "name": "Events & Shows",
+      "description": "Templates for events, shows, and performances",
+      "icon": "🎪"
+    },
+    {
+      "id": "business",
+      "name": "Business Pages",
+      "description": "Professional business and service pages",
+      "icon": "💼"
+    }
+  ],
+  "templates": [
+    {
+      "id": "studio-page",
+      "name": "Studio Page",
+      "description": "Complete studio page with hero, overview, music elements, and contact sections",
+      "category": "studio",
+      "thumbnail": "/templates/studio-page.jpg",
+      "sections": [
+        {
+          "id": "hero-section",
+          "type": "hero",
+          "title": "Studio Hero",
+          "content": "SUMMERTOWN STUDIO",
+          "order": 1,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "hero": {
+              "backgroundImage": "/hero-image.jpg",
+              "overlayColor": "oklch(0.705 0.213 47.604)",
+              "overlayOpacity": 0.8,
+              "textColor": "white",
+              "textAlignment": "center",
+              "buttonText": "Book Studio Time",
+              "buttonLink": "/contact",
+              "buttonStyle": "primary"
+            }
+          }
+        },
+        {
+          "id": "studio-overview-section",
+          "type": "studio-overview",
+          "title": "Studio Overview",
+          "content": "From intimate acoustic sessions to full-band recordings, our studio provides the perfect environment for artists to capture their vision with professional-grade equipment and a relaxed, inspiring atmosphere.",
+          "order": 2,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "studioOverview": {
+              "studioImage": "/studio-image.jpg",
+              "equipmentList": [
+                "Professional recording equipment",
+                "Mixing and mastering tools",
+                "Acoustic treatment",
+                "Multiple recording spaces"
+              ],
+              "services": [
+                "Recording sessions",
+                "Mixing and mastering",
+                "Rehearsal space",
+                "Artist collaboration"
+              ],
+              "bookingLink": "/contact"
+            }
+          }
+        },
+        {
+          "id": "music-elements-section",
+          "type": "music-elements",
+          "title": "Music Elements",
+          "content": "Our studio is home to various music initiatives that bring the community together.",
+          "order": 3,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "musicElements": {
+              "elements": [
+                {
+                  "id": "winetime",
+                  "title": "WINETIME",
+                  "description": "Weekly wine and music sessions that bring together local artists, wine enthusiasts, and music lovers for intimate performances and curated listening experiences.",
+                  "icon": "🍷"
+                },
+                {
+                  "id": "duck-radio",
+                  "title": "DUCK RADIO",
+                  "description": "Our in-house radio station broadcasting the best in jazz, funk, soul, and international grooves. Tune in for curated playlists, artist interviews, and live sessions from the studio.",
+                  "icon": "📻"
+                },
+                {
+                  "id": "fleetwood-djs",
+                  "title": "FLEETWOOD MARKET DJS",
+                  "description": "Regular DJ sessions featuring local and touring artists spinning vinyl across all genres. From jazz and soul to hip hop and international grooves, every session is a journey through sound.",
+                  "icon": "🎧"
+                }
+              ],
+              "layout": "grid",
+              "showIcons": true,
+              "backgroundColor": "yellow-400"
+            }
+          }
+        },
+        {
+          "id": "shows-section",
+          "type": "shows",
+          "title": "Curated Touring Shows",
+          "content": "We bring the best international and local artists to Adelaide, curating unique experiences that showcase the diversity and creativity of the global music scene.",
+          "order": 4,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "shows": {
+              "showType": "upcoming",
+              "limit": 6,
+              "showPosters": true,
+              "showDates": true,
+              "showTickets": true,
+              "layout": "grid"
+            }
+          }
+        },
+        {
+          "id": "contact-section",
+          "type": "contact",
+          "title": "Get In Touch",
+          "content": "Interested in recording at Summertown Studio or collaborating on a project? We'd love to hear from you.",
+          "order": 5,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "contact": {
+              "contactForm": true,
+              "contactInfo": true,
+              "mapEmbed": false,
+              "socialLinks": true,
+              "email": "studio@porchrecords.com.au",
+              "phone": "+61 8 1234 5678",
+              "address": "Summertown Studio, Adelaide, SA",
+              "hours": "By appointment"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "about-page",
+      "name": "About Page",
+      "description": "Standard about page with story, team, and mission sections",
+      "category": "general",
+      "thumbnail": "/templates/about-page.jpg",
+      "sections": [
+        {
+          "id": "hero-section",
+          "type": "hero",
+          "title": "About Hero",
+          "content": "ABOUT PORCH RECORDS",
+          "order": 1,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "hero": {
+              "backgroundImage": "/about-hero.jpg",
+              "overlayColor": "oklch(0.705 0.213 47.604)",
+              "overlayOpacity": 0.7,
+              "textColor": "white",
+              "textAlignment": "center"
+            }
+          }
+        },
+        {
+          "id": "story-section",
+          "type": "text",
+          "title": "Our Story",
+          "content": "Learn about the journey of Porch Records and our mission to bring the best music to Adelaide.",
+          "order": 2,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "text": {
+              "textAlignment": "center",
+              "textSize": "large",
+              "maxWidth": "lg"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "shows-page",
+      "name": "Shows Page",
+      "description": "Page for displaying upcoming and past shows with event details",
+      "category": "shows",
+      "thumbnail": "/templates/shows-page.jpg",
+      "sections": [
+        {
+          "id": "hero-section",
+          "type": "hero",
+          "title": "Shows Hero",
+          "content": "LIVE SHOWS",
+          "order": 1,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "hero": {
+              "backgroundImage": "/shows-hero.jpg",
+              "overlayColor": "oklch(0.705 0.213 47.604)",
+              "overlayOpacity": 0.8,
+              "textColor": "white",
+              "textAlignment": "center"
+            }
+          }
+        },
+        {
+          "id": "shows-section",
+          "type": "shows",
+          "title": "Upcoming Shows",
+          "content": "Check out our upcoming shows and events.",
+          "order": 2,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "shows": {
+              "showType": "upcoming",
+              "limit": 12,
+              "showPosters": true,
+              "showDates": true,
+              "showTickets": true,
+              "layout": "grid"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "blank-page",
+      "name": "Blank Page",
+      "description": "Empty page template to start from scratch",
+      "category": "general",
+      "thumbnail": "/templates/blank-page.jpg",
+      "sections": []
+    },
+    {
+      "id": "contact-page",
+      "name": "Contact Page",
+      "description": "Complete contact page with form, info, and map",
+      "category": "business",
+      "thumbnail": "/templates/contact-page.jpg",
+      "sections": [
+        {
+          "id": "hero-section",
+          "type": "hero",
+          "title": "Contact Hero",
+          "content": "GET IN TOUCH",
+          "order": 1,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "hero": {
+              "backgroundImage": "/contact-hero.jpg",
+              "overlayColor": "oklch(0.705 0.213 47.604)",
+              "overlayOpacity": 0.7,
+              "textColor": "white",
+              "textAlignment": "center"
+            }
+          }
+        },
+        {
+          "id": "contact-section",
+          "type": "contact",
+          "title": "Contact Information",
+          "content": "We'd love to hear from you. Get in touch with us.",
+          "order": 2,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "contact": {
+              "contactForm": true,
+              "contactInfo": true,
+              "mapEmbed": true,
+              "socialLinks": true,
+              "email": "info@porchrecords.com.au",
+              "phone": "+61 8 1234 5678",
+              "address": "Porch Records, Adelaide, SA",
+              "hours": "Mon-Fri: 10am-6pm, Sat: 10am-4pm"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "store-page",
+      "name": "Store Page",
+      "description": "Featured products and store information",
+      "category": "business",
+      "thumbnail": "/templates/store-page.jpg",
+      "sections": [
+        {
+          "id": "hero-section",
+          "type": "hero",
+          "title": "Store Hero",
+          "content": "OUR STORE",
+          "order": 1,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "hero": {
+              "backgroundImage": "/store-hero.jpg",
+              "overlayColor": "oklch(0.705 0.213 47.604)",
+              "overlayOpacity": 0.8,
+              "textColor": "white",
+              "textAlignment": "center",
+              "buttonText": "Shop Now",
+              "buttonLink": "/store",
+              "buttonStyle": "primary"
+            }
+          }
+        },
+        {
+          "id": "featured-products",
+          "type": "gallery",
+          "title": "Featured Products",
+          "content": "Check out our latest arrivals and featured items",
+          "order": 2,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "gallery": {
+              "images": [],
+              "layout": "grid",
+              "columns": 4,
+              "gap": "medium",
+              "showCaptions": true,
+              "showThumbnails": false
+            }
+          }
+        },
+        {
+          "id": "cta-section",
+          "type": "cta",
+          "title": "Visit Our Store",
+          "content": "Ready to discover amazing music?",
+          "order": 3,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "cta": {
+              "ctaTitle": "Visit Our Store",
+              "ctaDescription": "Browse our curated collection of vinyl records, CDs, and music merchandise.",
+              "buttonText": "Shop Online",
+              "buttonLink": "/store",
+              "buttonStyle": "primary",
+              "backgroundColor": "#f3f4f6",
+              "textColor": "#111827",
+              "layout": "center"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "events-page",
+      "name": "Events Page",
+      "description": "Comprehensive events and shows listing",
+      "category": "shows",
+      "thumbnail": "/templates/events-page.jpg",
+      "sections": [
+        {
+          "id": "hero-section",
+          "type": "hero",
+          "title": "Events Hero",
+          "content": "UPCOMING EVENTS",
+          "order": 1,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "hero": {
+              "backgroundImage": "/events-hero.jpg",
+              "overlayColor": "oklch(0.705 0.213 47.604)",
+              "overlayOpacity": 0.8,
+              "textColor": "white",
+              "textAlignment": "center"
+            }
+          }
+        },
+        {
+          "id": "upcoming-events",
+          "type": "shows",
+          "title": "Upcoming Events",
+          "content": "Don't miss these amazing upcoming events",
+          "order": 2,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "shows": {
+              "showType": "upcoming",
+              "limit": 8,
+              "showPosters": true,
+              "showDates": true,
+              "showTickets": true,
+              "layout": "grid"
+            }
+          }
+        },
+        {
+          "id": "past-events",
+          "type": "shows",
+          "title": "Past Events",
+          "content": "Relive the magic of our past events",
+          "order": 3,
+          "isVisible": true,
+          "createdAt": "2024-12-19T00:00:00Z",
+          "updatedAt": "2024-12-19T00:00:00Z",
+          "config": {
+            "shows": {
+              "showType": "past",
+              "limit": 6,
+              "showPosters": true,
+              "showDates": true,
+              "showTickets": false,
+              "layout": "grid"
+            }
+          }
+        }
+      ]
+    }
+  ]
+} 

@@ -1,0 +1,51 @@
+[
+  {
+    "id": "porch-and-recreation-2025",
+    "title": "PORCH & RECREATION",
+    "description": "A festival of music discovery live at the Burnside Ballroom on Kaurna Country, South Australia. International and Australian artists, pop up record shop, vinyl DJs, local bar and food.",
+    "date": "2025-05-31T13:00:00+09:30",
+    "endDate": "2025-06-01T23:30:00+09:30",
+    "location": "Burnside Ballroom, 401 B26, Tusmore SA 5065, Australia",
+    "image": "/porch-and-recreation.jpg",
+    "humanitixEmbed": "<iframe src='https://events.humanitix.com/porch-and-recreation' width='100%' height='600' frameborder='0'></iframe>",
+    "isPast": true,
+    "isPublished": true
+  },
+  {
+    "id": "30-70-sampology-socrates-2023",
+    "title": "30/70 x Sampology x SO.Crates - Porch Records",
+    "description": "A special show at the 1950's Burnside Ballroom. 30/70, Sampology, SO.Crates, food by Adelaide Paella Bar. Presented by Porch Records on Kaurna Country.",
+    "date": "2023-02-04T17:00:00+10:30",
+    "endDate": "2023-02-04T23:00:00+10:30",
+    "location": "Burnside Ballroom, 401 B26, Tusmore SA 5065, Australia",
+    "image": "/30-70-sampology-socrates.jpg",
+    "humanitixEmbed": "<iframe src='https://events.humanitix.com/30-70-a-surprise-location-with-porch-records' width='100%' height='600' frameborder='0'></iframe>",
+    "isPast": true,
+    "isPublished": true
+  },
+  {
+    "id": "pachyman-summertown-2025",
+    "title": "Pachyman - Live at Summertown Studio",
+    "description": "Pachyman live at Summertown Studio, Kaurna Country, South Australia. Supported by Sub-Magmatic. Presented by Porch Records and Jet Black Cat Music.",
+    "date": "2025-03-06T18:30:00+10:30",
+    "endDate": "2025-03-06T23:00:00+10:30",
+    "location": "Summertown Studio, 13 Paringa Ave, Somerton Park SA 5044, Australia",
+    "image": "/pachyman-summertown.jpg",
+    "humanitixEmbed": "<iframe src='https://events.humanitix.com/pachyman-live-at-summertown-studio' width='100%' height='600' frameborder='0'></iframe>",
+    "isPast": true,
+    "isPublished": true
+  },
+  {
+    "id": "test-show-2025",
+    "title": "Kacy & Clayton - Live at Summertown Studio",
+    "description": "This is a test show to verify the admin create and edit functionality works correctly with all the required fields.",
+    "date": "2025-10-18T04:00:00.000Z",
+    "endDate": "2025-10-18T08:00:00.000Z",
+    "location": "Test Venue, 123 Test Street, Adelaide SA 5000, Australia",
+    "image": "/media/instagram hard post not full dates-emcvdiBy.webp",
+    "humanitixEmbed": "<iframe src='https://events.humanitix.com/kacy-and-clayton-live-at-summertown-studio/tickets' width='100%' height='600' frameborder='0'></iframe>",
+    "isPast": false,
+    "isPublished": true,
+    "lastModified": "2025-08-11T09:42:57.772Z"
+  }
+]

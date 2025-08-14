@@ -1,0 +1,190 @@
+{
+  "products": [
+    {
+      "id": "M7UOTUGYDYPOHIURBPU2SCCG",
+      "title": "Hidden",
+      "price": 20,
+      "description": "",
+      "image": "/store.webp",
+      "images": [],
+      "imageIds": [],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "M7UOTUGYDYPOHIURBPU2SCCG",
+      "cachedAt": 1755144592295
+    },
+    {
+      "id": "64I4YL5VZXNA3SYNLKGXRBT3",
+      "title": "Kizza",
+      "price": 30,
+      "description": "",
+      "image": "https://items-images-sandbox.s3.us-west-2.amazonaws.com/files/b6680caee679be28d501b0d3d3bc8be96fa7e294/original.jpeg",
+      "images": [
+        {
+          "id": "4D4BXUXC7UJTPP63YRCYEIKL",
+          "url": "https://items-images-sandbox.s3.us-west-2.amazonaws.com/files/b6680caee679be28d501b0d3d3bc8be96fa7e294/original.jpeg"
+        },
+        {
+          "id": "BFC2KBVH6YBXWJ7USYMKZDAO",
+          "url": "https://items-images-sandbox.s3.us-west-2.amazonaws.com/files/82d580e07e2e11945d9d3060c40391bfe6b7a617/original.jpeg"
+        }
+      ],
+      "imageIds": [
+        "4D4BXUXC7UJTPP63YRCYEIKL",
+        "BFC2KBVH6YBXWJ7USYMKZDAO"
+      ],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "64I4YL5VZXNA3SYNLKGXRBT3",
+      "cachedAt": 1755144593885
+    },
+    {
+      "id": "XWBBKLLMS7RPAXMXLMXDQHMG",
+      "title": "No inventory",
+      "price": 19.99,
+      "description": "",
+      "image": "/store.webp",
+      "images": [],
+      "imageIds": [],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "XWBBKLLMS7RPAXMXLMXDQHMG",
+      "cachedAt": 1755144592296
+    },
+    {
+      "id": "HHCCE6GBLGGEYM7ZXJ6MJD3S",
+      "title": "T-shirt",
+      "price": 35,
+      "description": "",
+      "image": "/store.webp",
+      "images": [],
+      "imageIds": [],
+      "productType": "merch",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "HHCCE6GBLGGEYM7ZXJ6MJD3S",
+      "cachedAt": 1755144592296
+    },
+    {
+      "id": "TAY7GQZEWWVPIVRVG5WXF7BF",
+      "title": "Test API Response",
+      "price": 25.99,
+      "description": "Testing API response",
+      "image": "/store.webp",
+      "images": [],
+      "imageIds": [],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "TAY7GQZEWWVPIVRVG5WXF7BF",
+      "cachedAt": 1755144592296
+    },
+    {
+      "id": "Y7QKWOLMCZOJWSWLWPUFNHKM",
+      "title": "Test Hidden Product",
+      "price": 19.99,
+      "description": "A test product that should be hidden from the store\n[HIDDEN FROM STORE]",
+      "image": "/store.webp",
+      "images": [],
+      "imageIds": [],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "Y7QKWOLMCZOJWSWLWPUFNHKM",
+      "cachedAt": 1755144592296
+    },
+    {
+      "id": "WLVTWLJDBY6Y45JKKXPA3FDL",
+      "title": "Test Preorder Product",
+      "price": 39.99,
+      "description": "A test product that should be available for preorder\n[PREORDER]",
+      "image": "/store.webp",
+      "images": [],
+      "imageIds": [],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "WLVTWLJDBY6Y45JKKXPA3FDL",
+      "cachedAt": 1755144592296
+    },
+    {
+      "id": "OZ2TMWF2XFQN7FMZP2QMTFNP",
+      "title": "Test Visible Product",
+      "price": 29.99,
+      "description": "A test product that should be visible in the store\n[HIDDEN FROM STORE]",
+      "image": "/store.webp",
+      "images": [],
+      "imageIds": [],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "OZ2TMWF2XFQN7FMZP2QMTFNP",
+      "cachedAt": 1755144592296
+    },
+    {
+      "id": "3VGDQQU2ZN2YL3I3JOQGBUBP",
+      "title": "Updated via Test Script",
+      "price": 25,
+      "description": "This product was updated via the test script",
+      "image": "https://items-images-sandbox.s3.us-west-2.amazonaws.com/files/82d580e07e2e11945d9d3060c40391bfe6b7a617/original.jpeg",
+      "images": [
+        {
+          "id": "BFC2KBVH6YBXWJ7USYMKZDAO",
+          "url": "https://items-images-sandbox.s3.us-west-2.amazonaws.com/files/82d580e07e2e11945d9d3060c40391bfe6b7a617/original.jpeg"
+        },
+        {
+          "id": "7KK7HDPO2232GJXDYFD3OWI6",
+          "url": "https://items-images-sandbox.s3.us-west-2.amazonaws.com/files/fbe0cc96a2cda0606739bfb137eae82d63d7f0bf/original.jpeg"
+        }
+      ],
+      "imageIds": [
+        "BFC2KBVH6YBXWJ7USYMKZDAO",
+        "7KK7HDPO2232GJXDYFD3OWI6"
+      ],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "3VGDQQU2ZN2YL3I3JOQGBUBP",
+      "cachedAt": 1755144593073
+    },
+    {
+      "id": "ABW6CPAJEC5OQ7Y2IS25BTFN",
+      "title": "Voucher",
+      "price": 0,
+      "description": "",
+      "image": "https://items-images-sandbox.s3.us-west-2.amazonaws.com/files/b6680caee679be28d501b0d3d3bc8be96fa7e294/original.jpeg",
+      "images": [
+        {
+          "id": "4D4BXUXC7UJTPP63YRCYEIKL",
+          "url": "https://items-images-sandbox.s3.us-west-2.amazonaws.com/files/b6680caee679be28d501b0d3d3bc8be96fa7e294/original.jpeg"
+        }
+      ],
+      "imageIds": [
+        "4D4BXUXC7UJTPP63YRCYEIKL"
+      ],
+      "productType": "voucher",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "ABW6CPAJEC5OQ7Y2IS25BTFN",
+      "cachedAt": 1755144593031
+    },
+    {
+      "id": "3D6RSHP5UH33VBI5K5AFICR5",
+      "title": "test",
+      "price": 30,
+      "description": "est test\n[PREORDER]",
+      "image": "/store.webp",
+      "images": [],
+      "imageIds": [],
+      "productType": "record",
+      "inStock": true,
+      "isVisible": true,
+      "squareId": "3D6RSHP5UH33VBI5K5AFICR5",
+      "cachedAt": 1755144592296
+    }
+  ],
+  "cachedAt": 1755144593885
+}

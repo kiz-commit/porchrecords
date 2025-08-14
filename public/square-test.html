@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Square SDK Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        #card-container {
+            width: 100%;
+            height: 60px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Square SDK Test</h1>
+    
+    <div id="status" class="test-section info">
+        <h3>Status</h3>
+        <div id="status-content">Loading...</div>
+    </div>
+    
+    <div id="config" class="test-section info">
+        <h3>Configuration</h3>
+        <div id="config-content">Checking...</div>
+    </div>
+    
+    <div id="card-test" class="test-section info">
+        <h3>Card Form Test</h3>
+        <div id="card-container"></div>
+        <button id="tokenize-btn" disabled>Tokenize Card</button>
+        <div id="token-result"></div>
+    </div>
+    
+    <div id="payment-test" class="test-section info">
+        <h3>Payment Test</h3>
+        <button id="test-payment-btn" disabled>Test Payment API</button>
+        <div id="payment-result"></div>
+    </div>
+
+    <script>
+        // Square configuration
+        const applicationId = 'sandbox-sq0idb-ezUcxdUn3voWd4DOvsCgxA';
+        const locationId = 'LQQ99893BW2PD';
+        
+        let cardInstance = null;
+        let paymentsInstance = null;
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            const contentDiv = document.getElementById('status-content');
+            
+            statusDiv.className = `test-section ${type}`;
+            contentDiv.innerHTML = message;
+        }
+        
+        function updateConfig() {
+            const configDiv = document.getElementById('config-content');
+            configDiv.innerHTML = `
+                <p><strong>Application ID:</strong> ${applicationId ? 'Set' : 'Not set'}</p>
+                <p><strong>Location ID:</strong> ${locationId}</p>
+                <p><strong>Environment:</strong> Sandbox</p>
+            `;
+        }
+        
+        async function loadSquareSDK() {
+            try {
+                updateStatus('Loading Square SDK...', 'info');
+                
+                // Load Square SDK
+                const script = document.createElement('script');
+                script.src = 'https://sandbox.web.squarecdn.com/v1/square.js';
+                script.async = true;
+                script.crossOrigin = 'anonymous';
+                
+                script.onload = () => {
+                    updateStatus('Square SDK loaded, initializing...', 'info');
+                    initializeSquare();
+                };
+                
+                script.onerror = () => {
+                    updateStatus('Failed to load Square SDK', 'error');
+                };
+                
+                document.head.appendChild(script);
+            } catch (error) {
+                updateStatus(`Error loading Square SDK: ${error.message}`, 'error');
+            }
+        }
+        
+        async function initializeSquare() {
+            try {
+                if (!window.Square) {
+                    updateStatus('Square SDK not available', 'error');
+                    return;
+                }
+                
+                updateStatus('Initializing Square payments...', 'info');
+                
+                paymentsInstance = await window.Square.payments(applicationId, locationId);
+                updateStatus('Square payments initialized successfully', 'success');
+                
+                // Create card form
+                cardInstance = await paymentsInstance.card({
+                    style: {
+                        '.input-container.is-focus': {
+                            borderColor: '#f97316'
+                        },
+                        '.input-container': {
+                            borderColor: '#d1d5db',
+                            borderRadius: '8px'
+                        }
+                    }
+                });
+                
+                // Attach card form
+                const cardContainer = document.getElementById('card-container');
+                await cardInstance.attach(cardContainer);
+                
+                updateStatus('Card form attached successfully', 'success');
+                
+                // Enable buttons
+                document.getElementById('tokenize-btn').disabled = false;
+                document.getElementById('test-payment-btn').disabled = false;
+                
+            } catch (error) {
+                updateStatus(`Error initializing Square: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testTokenization() {
+            try {
+                const resultDiv = document.getElementById('token-result');
+                resultDiv.innerHTML = 'Tokenizing...';
+                
+                const tokenResult = await cardInstance.tokenize();
+                
+                if (tokenResult.status === 'OK') {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p><strong>Tokenization successful!</strong></p>
+                            <p><strong>Token:</strong> ${tokenResult.token.substring(0, 20)}...</p>
+                            <p><strong>Status:</strong> ${tokenResult.status}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p><strong>Tokenization failed</strong></p>
+                            <p><strong>Status:</strong> ${tokenResult.status}</p>
+                            <p><strong>Error:</strong> ${tokenResult.errors?.join(', ') || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                const resultDiv = document.getElementById('token-result');
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p><strong>Tokenization error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testPaymentAPI() {
+            try {
+                const resultDiv = document.getElementById('payment-result');
+                resultDiv.innerHTML = 'Testing payment API...';
+                
+                // First tokenize
+                const tokenResult = await cardInstance.tokenize();
+                
+                if (tokenResult.status !== 'OK') {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p><strong>Cannot test payment API - tokenization failed</strong></p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Test payment API
+                const paymentData = {
+                    sourceId: tokenResult.token,
+                    cartItems: [{
+                        id: 'test-product-1',
+                        quantity: 1,
+                        product: {
+                            id: 'test-product',
+                            title: 'Test Product',
+                            price: 25.00,
+                            image: '/test-image.jpg'
+                        }
+                    }],
+                    total: 25.00,
+                    subtotal: 25.00,
+                    shippingCost: 0,
+                    gstAmount: 2.27,
+                    customerInfo: {
+                        firstName: 'Test',
+                        lastName: 'Customer',
+                        email: 'test@example.com',
+                        phone: '+61412345678',
+                        address: '123 Test St',
+                        city: 'Adelaide',
+                        state: 'SA',
+                        postalCode: '5000',
+                        country: 'AU'
+                    },
+                    deliveryMethod: 'pickup',
+                    isPresale: false
+                };
+                
+                const response = await fetch('/api/process-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(paymentData),
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <p><strong>Payment API test successful!</strong></p>
+                            <p><strong>Order ID:</strong> ${result.orderId}</p>
+                            <p><strong>Payment ID:</strong> ${result.paymentId}</p>
+                            <p><strong>Message:</strong> ${result.message}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <p><strong>Payment API test failed</strong></p>
+                            <p><strong>Status:</strong> ${response.status}</p>
+                            <p><strong>Error:</strong> ${result.error || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                const resultDiv = document.getElementById('payment-result');
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <p><strong>Payment API error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('tokenize-btn').addEventListener('click', testTokenization);
+        document.getElementById('test-payment-btn').addEventListener('click', testPaymentAPI);
+        
+        // Initialize
+        updateConfig();
+        loadSquareSDK();
+    </script>
+</body>
+</html> 

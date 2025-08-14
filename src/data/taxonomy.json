@@ -1,0 +1,163 @@
+{
+  "items": [
+    {
+      "name": "Island time",
+      "type": "mood",
+      "emoji": "🏝️",
+      "color": "#4ECDC4",
+      "description": "Relaxed, tropical vibes",
+      "isActive": true,
+      "order": 1,
+      "id": "uvl069v9v",
+      "createdAt": "2025-08-10T02:38:13.775Z",
+      "updatedAt": "2025-08-10T02:38:13.775Z"
+    },
+    {
+      "name": "4 to the floor",
+      "type": "mood",
+      "emoji": "🕺",
+      "color": "#FF6B6B",
+      "description": "Steady, danceable rhythm",
+      "isActive": true,
+      "order": 2,
+      "id": "0ri61m6h6",
+      "createdAt": "2025-08-10T02:38:13.775Z",
+      "updatedAt": "2025-08-10T02:38:13.775Z"
+    },
+    {
+      "name": "Poolside",
+      "type": "mood",
+      "emoji": "🏊",
+      "color": "#45B7D1",
+      "description": "Chill, summer vibes",
+      "isActive": true,
+      "order": 3,
+      "id": "zklvbrpxj",
+      "createdAt": "2025-08-10T02:38:13.775Z",
+      "updatedAt": "2025-08-10T02:38:13.775Z"
+    },
+    {
+      "name": "Slow focus",
+      "type": "mood",
+      "emoji": "🧘",
+      "color": "#96CEB4",
+      "description": "Meditative, concentrated",
+      "isActive": true,
+      "order": 4,
+      "id": "kjc6snwxt",
+      "createdAt": "2025-08-10T02:38:13.775Z",
+      "updatedAt": "2025-08-10T02:38:13.775Z"
+    },
+    {
+      "name": "Memory lane",
+      "type": "mood",
+      "emoji": "💭",
+      "color": "#DDA0DD",
+      "description": "Nostalgic, reflective",
+      "isActive": true,
+      "order": 5,
+      "id": "d5dcdnx4t",
+      "createdAt": "2025-08-10T02:38:13.775Z",
+      "updatedAt": "2025-08-10T02:38:13.775Z"
+    },
+    {
+      "name": "Expansions",
+      "type": "mood",
+      "emoji": "🌌",
+      "color": "#FFD93D",
+      "description": "Growing, evolving soundscapes",
+      "isActive": true,
+      "order": 6,
+      "id": "0nant7fpr",
+      "createdAt": "2025-08-10T02:38:13.775Z",
+      "updatedAt": "2025-08-10T02:38:13.775Z"
+    },
+    {
+      "id": "5q74jp1qx",
+      "name": "Afrobeat",
+      "type": "genre",
+      "isActive": true,
+      "order": 0,
+      "createdAt": "2025-08-10T11:33:23.549Z",
+      "updatedAt": "2025-08-10T11:33:23.549Z"
+    },
+    {
+      "id": "e38p7x1yb",
+      "name": "Bossa Nova",
+      "type": "genre",
+      "isActive": true,
+      "order": 1,
+      "createdAt": "2025-08-10T11:33:23.549Z",
+      "updatedAt": "2025-08-10T11:33:23.549Z"
+    },
+    {
+      "id": "tdcyhtruj",
+      "name": "Ethio Jazz",
+      "type": "genre",
+      "isActive": true,
+      "order": 2,
+      "createdAt": "2025-08-10T11:33:23.549Z",
+      "updatedAt": "2025-08-10T11:33:23.549Z"
+    },
+    {
+      "id": "tqjoxh5nd",
+      "name": "Salsa",
+      "type": "genre",
+      "isActive": true,
+      "order": 3,
+      "createdAt": "2025-08-10T11:33:23.549Z",
+      "updatedAt": "2025-08-10T11:33:23.549Z"
+    },
+    {
+      "id": "0ig9rsan4",
+      "name": "Jazz Rap",
+      "type": "genre",
+      "isActive": true,
+      "order": 4,
+      "createdAt": "2025-08-10T11:33:23.549Z",
+      "updatedAt": "2025-08-10T11:33:23.549Z"
+    },
+    {
+      "id": "2mew5q7cq",
+      "name": "Spiritual Jazz",
+      "type": "genre",
+      "isActive": true,
+      "order": 5,
+      "createdAt": "2025-08-10T11:33:23.549Z",
+      "updatedAt": "2025-08-10T11:33:23.549Z"
+    },
+    {
+      "id": "xe7rid04m",
+      "name": "Acid Jazz",
+      "type": "genre",
+      "isActive": true,
+      "order": 6,
+      "createdAt": "2025-08-10T11:33:23.549Z",
+      "updatedAt": "2025-08-10T11:33:23.549Z"
+    },
+    {
+      "id": "jhpg72rhr",
+      "name": "Jazz Funk",
+      "type": "genre",
+      "isActive": true,
+      "order": 7,
+      "createdAt": "2025-08-10T11:33:23.549Z",
+      "updatedAt": "2025-08-10T11:33:23.549Z"
+    },
+    {
+      "name": "Test",
+      "type": "mood",
+      "emoji": "",
+      "color": "",
+      "description": "",
+      "order": 0,
+      "usageCount": 0,
+      "isActive": true,
+      "id": "f3s3rc0b6",
+      "createdAt": "2025-08-13T04:02:50.751Z",
+      "updatedAt": "2025-08-13T04:02:50.751Z"
+    }
+  ],
+  "lastUpdated": "2025-08-13T04:02:50.751Z",
+  "version": "1.0.0"
+}

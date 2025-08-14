@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-07-29T00:00:14.273Z",
+  "status": "success",
+  "stats": {
+    "pages": 11,
+    "media": 0,
+    "shows": 4,
+    "products": 2,
+    "genres": 8,
+    "moods": 6,
+    "size": 17211392
+  },
+  "backupLocation": "/Users/kierankellett/PorchRecords/backup/json-files/2025-07-29",
+  "databaseBackup": "/Users/kierankellett/PorchRecords/data/porchrecords.db.backup.1753747214250",
+  "notes": [
+    "JSON files have been backed up and can be safely removed after verification",
+    "Database is now the primary storage method",
+    "All API endpoints have been updated to use the database",
+    "Performance should be improved for large datasets"
+  ]
+}
