@@ -75,23 +75,14 @@ export async function GET(request: NextRequest) {
     // Get products with pagination
     const query = `
       SELECT 
-        p.id, p.title, p.artist, p.price, p.description, p.image, p.images, p.image_ids,
-        p.genre, p.in_stock,
-        COALESCE(pr.is_preorder, p.is_preorder) AS is_preorder,
-        p.is_visible,
-        COALESCE(pr.preorder_release_date, p.preorder_release_date) AS preorder_release_date,
-        COALESCE(pr.preorder_quantity, p.preorder_quantity) AS preorder_quantity,
-        COALESCE(pr.preorder_max_quantity, p.preorder_max_quantity) AS preorder_max_quantity,
-        p.product_type, p.merch_category,
-        p.size, p.color, p.mood, p.stock_quantity, p.stock_status, p.is_variable_pricing,
-        p.min_price, p.max_price, p.created_at, p.slug
-      FROM products p
-      LEFT JOIN preorders pr
-        ON pr.product_id = p.square_id
-        OR pr.product_id = p.id
-        OR pr.product_id = REPLACE(p.id, 'square_', '')
-      ${whereClause ? whereClause.replace('FROM products', 'FROM products p LEFT JOIN preorders pr ON pr.product_id = p.square_id OR pr.product_id = p.id OR pr.product_id = REPLACE(p.id, \"square_\", \"\")') : ''}
-      ORDER BY p.title ASC
+        id, title, artist, price, description, image, images, image_ids,
+        genre, in_stock, is_preorder, is_visible, preorder_release_date,
+        preorder_quantity, preorder_max_quantity, product_type, merch_category,
+        size, color, mood, stock_quantity, stock_status, is_variable_pricing,
+        min_price, max_price, created_at, slug
+      FROM products
+      ${whereClause}
+      ORDER BY title ASC
       LIMIT ? OFFSET ?
     `;
 
