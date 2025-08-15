@@ -26,9 +26,10 @@ const writeProductToDatabase = (product: any) => {
   const db = getDatabase();
   try {
     const now = new Date().toISOString();
+    const productId = `square_${product.squareId}`;
     
-    // Check if product exists
-    const existing = db.prepare('SELECT id FROM products WHERE square_id = ?').get(product.squareId);
+    // Check if product exists using the id field
+    const existing = db.prepare('SELECT id FROM products WHERE id = ?').get(productId);
     
     if (existing) {
       // Update existing product
@@ -36,7 +37,7 @@ const writeProductToDatabase = (product: any) => {
         UPDATE products 
         SET title = ?, price = ?, description = ?, image = ?, 
             artist = ?, genre = ?, updated_at = ?, last_synced_at = ?
-        WHERE square_id = ?
+        WHERE id = ?
       `).run(
         product.title,
         product.price,
@@ -46,7 +47,7 @@ const writeProductToDatabase = (product: any) => {
         product.genre,
         now,
         now,
-        product.squareId
+        productId
       );
     } else {
       // Insert new product
@@ -57,7 +58,7 @@ const writeProductToDatabase = (product: any) => {
           stock_status, product_type, updated_at, created_at, last_synced_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        `square_${product.squareId}`,
+        productId,
         product.title,
         product.price,
         product.description,
