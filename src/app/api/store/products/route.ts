@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
+import { getDatabase } from '@/lib/database';
 
 interface StoreProduct {
   id: string;
@@ -31,7 +31,7 @@ interface StoreProduct {
 
 // GET - Retrieve visible products from local database (super fast!)
 export async function GET(request: NextRequest) {
-  const db = new Database('data/porchrecords.db');
+  const db = await getDatabase();
   
   try {
     const { searchParams } = new URL(request.url);
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     // Get total count for pagination
     const countQuery = `SELECT COUNT(*) as total FROM products ${whereClause}`;
-    const countResult = db.prepare(countQuery).get(...params) as { total: number };
+    const countResult = await db.get(countQuery, ...params) as { total: number };
     const totalProducts = countResult.total;
 
     // Get products with pagination
@@ -87,9 +87,7 @@ export async function GET(request: NextRequest) {
     `;
 
     params.push(limit, offset);
-    // Because we injected a JOIN into the FROM, we need to rebuild params for the final query
-    const finalQuery = db.prepare(query);
-    const rows = finalQuery.all(...params) as any[];
+    const rows = await db.all(query, ...params) as any[];
 
     // Transform database rows to StoreProduct format
     const products: StoreProduct[] = rows.map((row: any) => ({
@@ -143,14 +141,12 @@ export async function GET(request: NextRequest) {
       products: [],
       error: errorMessage
     }, { status: 500 });
-  } finally {
-    db.close();
   }
 }
 
 // GET by ID - Retrieve single product from database (internal helper)
 async function getProductById(id: string): Promise<StoreProduct | null> {
-  const db = new Database('data/porchrecords.db');
+  const db = await getDatabase();
   
   try {
     const query = `
@@ -164,7 +160,7 @@ async function getProductById(id: string): Promise<StoreProduct | null> {
       WHERE id = ? AND is_from_square = 1
     `;
 
-    const row = db.prepare(query).get(id) as any;
+    const row = await db.get(query, id) as any;
     
     if (!row) {
       return null;
@@ -202,7 +198,5 @@ async function getProductById(id: string): Promise<StoreProduct | null> {
   } catch (error) {
     console.error('❌ Error fetching product by ID from database:', error);
     return null;
-  } finally {
-    db.close();
   }
 }
