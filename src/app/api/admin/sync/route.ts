@@ -1,50 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server';
 import squareClient from '@/lib/square';
 import { invalidateProductsCache } from '@/lib/cache-utils';
-import fs from 'fs';
+import Database from 'better-sqlite3';
 import path from 'path';
 
-const PRODUCTS_FILE = path.join(process.cwd(), 'src', 'data', 'products.json');
-const SYNC_STATUS_FILE = path.join(process.cwd(), 'src', 'data', 'sync-status.json');
+// Database path
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'data', 'porchrecords.db');
 
-const readProducts = () => {
+// Database helper functions
+const getDatabase = () => {
+  return new Database(DB_PATH);
+};
+
+const readProductsFromDatabase = () => {
+  const db = getDatabase();
   try {
-    if (fs.existsSync(PRODUCTS_FILE)) {
-      const data = fs.readFileSync(PRODUCTS_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-    return [];
-  } catch (error) {
-    console.error('Error reading products file:', error);
-    return [];
+    const products = db.prepare('SELECT * FROM products WHERE is_from_square = 1').all();
+    return products;
+  } finally {
+    db.close();
   }
 };
 
-const writeProducts = (products: any[]) => {
+const writeProductToDatabase = (product: any) => {
+  const db = getDatabase();
   try {
-    const dir = path.dirname(PRODUCTS_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    const now = new Date().toISOString();
+    
+    // Check if product exists
+    const existing = db.prepare('SELECT id FROM products WHERE square_id = ?').get(product.squareId);
+    
+    if (existing) {
+      // Update existing product
+      db.prepare(`
+        UPDATE products 
+        SET title = ?, price = ?, description = ?, image = ?, 
+            artist = ?, genre = ?, updated_at = ?, last_synced_at = ?
+        WHERE square_id = ?
+      `).run(
+        product.title,
+        product.price,
+        product.description,
+        product.image,
+        product.artist,
+        product.genre,
+        now,
+        now,
+        product.squareId
+      );
+    } else {
+      // Insert new product
+      db.prepare(`
+        INSERT INTO products (
+          id, title, price, description, image, in_stock, artist, genre,
+          is_preorder, square_id, is_from_square, is_visible, stock_quantity,
+          stock_status, product_type, updated_at, created_at, last_synced_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        `square_${product.squareId}`,
+        product.title,
+        product.price,
+        product.description,
+        product.image,
+        1, // in_stock
+        product.artist,
+        product.genre,
+        0, // is_preorder
+        product.squareId,
+        1, // is_from_square
+        1, // is_visible = true (new products are visible by default)
+        10, // stock_quantity
+        'in_stock',
+        'record',
+        now,
+        now,
+        now
+      );
     }
-    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2));
-  } catch (error) {
-    console.error('Error writing products file:', error);
-    throw error;
+  } finally {
+    db.close();
   }
 };
 
 const updateSyncStatus = (lastSync: string, pendingChanges: number = 0) => {
+  const db = getDatabase();
   try {
-    const dir = path.dirname(SYNC_STATUS_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(SYNC_STATUS_FILE, JSON.stringify({
-      lastSync,
-      pendingChanges,
-    }, null, 2));
-  } catch (error) {
-    console.error('Error updating sync status:', error);
+    db.prepare(`
+      INSERT OR REPLACE INTO site_config (config_key, config_value, updated_at)
+      VALUES ('last_sync', ?, ?)
+    `).run(lastSync, new Date().toISOString());
+    
+    db.prepare(`
+      INSERT OR REPLACE INTO site_config (config_key, config_value, updated_at)
+      VALUES ('pending_changes', ?, ?)
+    `).run(pendingChanges.toString(), new Date().toISOString());
+  } finally {
+    db.close();
   }
 };
 
@@ -66,7 +117,8 @@ export async function POST(request: NextRequest) {
           return typeof value === 'bigint' ? value.toString() : value;
         }
         console.log('Square API response:', JSON.stringify(response, replacer, 2));
-        const existingProducts = readProducts();
+        
+        const existingProducts = readProductsFromDatabase();
         let newProducts = 0;
         let updatedProducts = 0;
 
@@ -99,67 +151,28 @@ export async function POST(request: NextRequest) {
               genre: 'Uncategorized',
               curationTags: [],
               isPreorder: false,
-              isVisible: false, // New products are hidden by default
               squareId: item.id,
               isFromSquare: true,
               updatedAt: now,
             };
           }).filter(Boolean);
 
-          // Merge with existing products
-          const existingSquareIds = new Set(existingProducts.filter((p: any) => p.isFromSquare).map((p: any) => p.squareId));
-          
+          // Process each product
           squareProducts.forEach((squareProduct: any) => {
-            const existingIndex = existingProducts.findIndex((p: any) => p.squareId === squareProduct.squareId);
+            const existingProduct = existingProducts.find((p: any) => p.square_id === squareProduct.squareId);
             
-            if (existingIndex === -1) {
-              existingProducts.push(squareProduct);
+            if (!existingProduct) {
+              // New product
+              writeProductToDatabase(squareProduct);
               newProducts++;
               log.push(`Added: ${squareProduct.title}`);
             } else {
-              existingProducts[existingIndex] = { ...existingProducts[existingIndex], ...squareProduct };
+              // Update existing product
+              writeProductToDatabase(squareProduct);
               updatedProducts++;
               log.push(`Updated: ${squareProduct.title}`);
             }
           });
-
-          writeProducts(existingProducts);
-          
-          // Save visibility settings for new products to local data file
-          if (newProducts > 0) {
-            try {
-              const fs = require('fs');
-              const path = require('path');
-              const merchCategoriesPath = path.join(process.cwd(), 'src', 'data', 'merchCategories.json');
-              
-              let merchCategories: any = {};
-              if (fs.existsSync(merchCategoriesPath)) {
-                const data = fs.readFileSync(merchCategoriesPath, 'utf8');
-                merchCategories = JSON.parse(data);
-              }
-              
-              // Add visibility setting for new products
-              squareProducts.forEach((product: any) => {
-                if (!merchCategories[product.id]) {
-                  merchCategories[product.id] = {
-                    isVisible: false, // New products are hidden by default
-                    productType: 'record',
-                    merchCategory: '',
-                    size: '',
-                    color: '',
-                    genre: '',
-                    mood: '',
-                  };
-                }
-              });
-              
-              fs.writeFileSync(merchCategoriesPath, JSON.stringify(merchCategories, null, 2));
-              log.push(`Updated local data for ${newProducts} new products`);
-            } catch (error) {
-              console.error('Error saving local product data:', error);
-              log.push(`Warning: Failed to save local data for new products`);
-            }
-          }
           
           log.push(`Pull complete: ${newProducts} new, ${updatedProducts} updated`);
         }
@@ -173,11 +186,11 @@ export async function POST(request: NextRequest) {
       log.push('Pushing local products to Square...');
       
       try {
-        const existingProducts = readProducts();
-        const localProducts = existingProducts.filter((p: any) => !p.isFromSquare && !p.squareId);
+        const existingProducts = readProductsFromDatabase();
+        const localProducts = existingProducts.filter((p: any) => !p.is_from_square && !p.square_id);
         let pushedProducts = 0;
 
-        for (const product of localProducts) {
+        for (const product of localProducts as any[]) {
           try {
             const locationId = process.env.SQUARE_LOCATION_ID;
             if (!locationId) {
@@ -222,20 +235,23 @@ export async function POST(request: NextRequest) {
               idempotencyKey: `push-product-${product.id}-${Date.now()}`,
             });
 
-            // Update the product with Square ID
-            product.squareId = squareResponse.objects?.[0]?.id;
-            product.isFromSquare = true;
-            product.updatedAt = now;
+            // Update the product with Square ID in database
+            const db = getDatabase();
+            try {
+              db.prepare(`
+                UPDATE products 
+                SET square_id = ?, is_from_square = 1, updated_at = ?
+                WHERE id = ?
+              `).run(squareResponse.objects?.[0]?.id, now, product.id);
+            } finally {
+              db.close();
+            }
             
             pushedProducts++;
             log.push(`Pushed: ${product.title}`);
           } catch (error) {
             log.push(`Failed to push ${product.title}: ${error}`);
           }
-        }
-
-        if (pushedProducts > 0) {
-          writeProducts(existingProducts);
         }
         
         log.push(`Push complete: ${pushedProducts} products pushed to Square`);

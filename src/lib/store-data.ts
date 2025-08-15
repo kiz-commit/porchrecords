@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import Database from 'better-sqlite3';
 import { StoreProduct } from '@/lib/types';
 
 export async function getStoreData(): Promise<{
@@ -13,41 +12,44 @@ export async function getStoreData(): Promise<{
   let allMerchCategories: string[] = [];
   let allMoods: string[] = [];
 
-  // Load local data for categories, genres, and moods
+  const db = new Database('data/porchrecords.db');
+  
   try {
-    // Load genres from local file
-    const genresPath = path.join(process.cwd(), 'src', 'data', 'genres.json');
-    const genresFile = fs.readFileSync(genresPath, 'utf8');
-    allGenres = JSON.parse(genresFile);
-  } catch {
+    // Load genres from database
+    const genres = db.prepare(`
+      SELECT DISTINCT genre 
+      FROM products 
+      WHERE genre IS NOT NULL AND genre != '' AND is_visible = 1
+      ORDER BY genre
+    `).all() as any[];
+    allGenres = genres.map(g => g.genre);
+
+    // Load moods from database
+    const moods = db.prepare(`
+      SELECT DISTINCT mood 
+      FROM products 
+      WHERE mood IS NOT NULL AND mood != '' AND is_visible = 1
+      ORDER BY mood
+    `).all() as any[];
+    allMoods = moods.map(m => m.mood);
+
+    // Load merch categories from database
+    const merchCategories = db.prepare(`
+      SELECT DISTINCT merch_category 
+      FROM products 
+      WHERE merch_category IS NOT NULL AND merch_category != '' AND is_visible = 1
+      ORDER BY merch_category
+    `).all() as any[];
+    allMerchCategories = merchCategories.map(mc => mc.merch_category);
+
+  } catch (error) {
+    console.error('Error loading store data from database:', error);
+    // Fallback to empty arrays
     allGenres = [];
-  }
-
-  try {
-    // Load moods from local file
-    const moodsPath = path.join(process.cwd(), 'src', 'data', 'moods.json');
-    const moodsFile = fs.readFileSync(moodsPath, 'utf8');
-    allMoods = JSON.parse(moodsFile);
-  } catch {
-    allMoods = [];
-  }
-
-  try {
-    // Load merch categories from local file
-    const merchCategoriesPath = path.join(process.cwd(), 'src', 'data', 'merchCategories.json');
-    const merchCategoriesFile = fs.readFileSync(merchCategoriesPath, 'utf8');
-    const merchCategoriesData = JSON.parse(merchCategoriesFile);
-    
-    // Extract unique merch categories
-    const allMerchCategoriesSet = new Set<string>();
-    Object.values(merchCategoriesData).forEach((item: any) => {
-      if (item.merchCategory && item.merchCategory.trim() !== '') {
-        allMerchCategoriesSet.add(item.merchCategory);
-      }
-    });
-    allMerchCategories = Array.from(allMerchCategoriesSet).sort();
-  } catch {
     allMerchCategories = [];
+    allMoods = [];
+  } finally {
+    db.close();
   }
 
   // For now, return empty products since we're using the cache API

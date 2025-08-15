@@ -4,159 +4,65 @@ import { StoreProduct } from '@/lib/types';
 import { Square } from 'square';
 import { withAdminAuth } from '@/lib/route-protection';
 import { invalidateProductsCache } from '@/lib/cache-utils';
+import Database from 'better-sqlite3';
 
-function safeString(val: unknown): string {
-  return typeof val === 'string' ? val : '';
-}
-
-// Helper function to check if product has inventory at the configured location
-async function hasLocationInventory(variationId: string): Promise<boolean> {
-  try {
-    const locationId = process.env.SQUARE_LOCATION_ID;
-    if (!locationId) {
-      console.log('   ⚠️  No SQUARE_LOCATION_ID configured - defaulting to include product');
-      return true; // Default to include if no location configured
-    }
-
-    // Check if this variation has inventory at the configured location
-    const inventoryResponse = await squareClient.inventory.batchGetCounts({
-      locationIds: [locationId],
-      catalogObjectIds: [variationId],
-    });
-    
-    if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
-      const quantity = Number(inventoryResponse.data[0].quantity) || 0;
-      console.log(`   📍 Location inventory check for ${variationId}: ${quantity} units (INCLUDED - will show as sold out if 0)`);
-      return true; // Include product if it has an inventory record, regardless of quantity
-    }
-    
-    // If no inventory record found, exclude the product
-    console.log(`   📍 No inventory record found for ${variationId} at location ${locationId} - excluding product`);
-    return false;
-  } catch (error) {
-    console.error('❌ Error checking location inventory:', error);
-    return false; // Default to exclude on error
-  }
-}
-
-// GET - Fetch all products (protected with admin auth)
+// GET - Fetch all products from database (protected with admin auth)
 async function getHandler(request: NextRequest) {
+  const db = new Database('data/porchrecords.db');
+  
   try {
-    // Only fetch Square products
-    let squareProducts: StoreProduct[] = [];
-    try {
-      // Fetch ALL items with pagination and location filtering
-      const locationId = process.env.SQUARE_LOCATION_ID;
-      let allItems: Square.CatalogObject[] = [];
-      let cursor: string | undefined = undefined;
-      do {
-        const searchRequest: any = locationId
-          ? { enabledLocationIds: [locationId], cursor }
-          : { cursor };
-        const resp = await squareClient.catalog.searchItems(searchRequest);
-        if (resp.items) {
-          allItems.push(...resp.items);
-        }
-        cursor = (resp as any).cursor;
-      } while (cursor);
-      
-      if (allItems.length > 0) {
-        const productsWithImages = await Promise.all(allItems.map(async (item: Square.CatalogObject): Promise<StoreProduct | null> => {
-          if (item.type !== 'ITEM' || !item.itemData?.variations?.length) {
-            return null;
-          }
-          
-          const variation = item.itemData.variations[0];
-          if (variation.type !== 'ITEM_VARIATION' || !variation.id) {
-            return null;
-          }
-          
-          // Special handling for voucher products - they don't have fixed prices
-          const isVoucher = item.itemData.name?.toLowerCase().includes('voucher') || 
-                           item.itemData.description?.toLowerCase().includes('voucher');
-          
-          // Check if variation has price (required for most products, but not vouchers)
-          if (!variation.itemVariationData?.priceMoney && !isVoucher) {
-            return null;
-          }
+    // Get all products from database
+    const query = `
+      SELECT 
+        id, title, artist, price, description, image, images, image_ids,
+        genre, in_stock, is_preorder, is_visible, preorder_release_date,
+        preorder_quantity, preorder_max_quantity, product_type, merch_category,
+        size, color, mood, stock_quantity, stock_status, is_variable_pricing,
+        min_price, max_price, created_at, slug, square_id, is_from_square
+      FROM products 
+      ORDER BY title ASC
+    `;
 
-          // TIER 1: Include items that are present at the location even if inventory tracking is disabled there
-          const locationId = process.env.SQUARE_LOCATION_ID;
-          const variationData = variation.itemVariationData || {} as any;
-          const locationOverrides = (variationData.locationOverrides || []) as Array<{ locationId?: string; trackInventory?: boolean }>;
-          const hasInventoryTrackingDisabledAtLocation = !!locationId && (
-            variationData.trackInventory === false ||
-            locationOverrides.some(o => o && o.locationId === locationId && o.trackInventory === false)
-          );
+    const rows = db.prepare(query).all() as any[];
 
-          // Only require an inventory record when tracking is enabled at the location
-          if (!hasInventoryTrackingDisabledAtLocation) {
-            if (!await hasLocationInventory(variation.id)) {
-              console.log(`   ⚠️  No inventory record at configured location for ${item.itemData.name} - including in admin listing as out-of-stock`);
-              // Do not exclude from admin listing; continue to include
-            }
-          }
+    // Transform database rows to StoreProduct format
+    const products: StoreProduct[] = rows.map((row: any) => ({
+      id: row.id,
+      title: row.title || 'No title',
+      artist: row.artist || 'Unknown Artist',
+      price: row.price || 0,
+      description: row.description || '',
+      image: row.image || '/store.webp',
+      images: row.images ? JSON.parse(row.images) : [],
+      imageIds: row.image_ids ? JSON.parse(row.image_ids) : [],
+      genre: row.genre || 'Uncategorized',
+      inStock: Boolean(row.in_stock),
+      isPreorder: Boolean(row.is_preorder),
+      isVisible: Boolean(row.is_visible),
+      preorderReleaseDate: row.preorder_release_date || '',
+      preorderQuantity: row.preorder_quantity || 0,
+      preorderMaxQuantity: row.preorder_max_quantity || 0,
+      productType: row.product_type || 'record',
+      merchCategory: row.merch_category || '',
+      size: row.size || '',
+      color: row.color || '',
+      mood: row.mood || '',
+      stockQuantity: row.stock_quantity || 0,
+      stockStatus: row.stock_status || 'out_of_stock',
+      isVariablePricing: Boolean(row.is_variable_pricing),
+      minPrice: row.min_price,
+      maxPrice: row.max_price,
+      slug: row.slug
+    }));
 
-          const price = isVoucher ? 0 : Number(variation.itemVariationData?.priceMoney?.amount || 0) / 100;
-          const imageIds = item.itemData.imageIds || [];
-          let images: { id: string; url: string }[] = [];
-          let image = '/store.webp';
-
-          if (imageIds.length > 0) {
-            images = await Promise.all(imageIds.map(async (imageId: string) => {
-              try {
-                const imageResponse = await squareClient.catalog.object.get({ objectId: imageId });
-                if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
-                  return { id: imageId, url: imageResponse.object.imageData.url || `/store.webp` };
-                } else {
-                  return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
-                }
-              } catch (error) {
-                console.error('Error fetching image from Square:', error);
-                return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
-              }
-            }));
-            if (images.length > 0) {
-              image = images[0].url;
-            }
-          }
-
-          return {
-            id: item.id,
-            title: safeString(item.itemData.name),
-            artist: item.itemData.description || 'Unknown Artist',
-            price: price,
-            image: image, // for backward compatibility
-            images: images, // new field: all images
-            imageIds: item.itemData.imageIds || [],
-            genre: safeString(item.itemData.categoryId),
-            description: item.itemData.description || '',
-            inStock: true,
-            isPreorder: false,
-            isVisible: true,
-            preorderReleaseDate: '',
-            preorderQuantity: 0,
-            preorderMaxQuantity: 0,
-            productType: isVoucher ? 'voucher' : 'record',
-            merchCategory: '',
-            size: '',
-            color: '',
-            mood: '',
-            stockQuantity: 999,
-            stockStatus: 'in_stock',
-            isVariablePricing: false
-          };
-        }));
-        squareProducts = productsWithImages.filter((p: StoreProduct | null): p is StoreProduct => p !== null);
-      }
-    } catch (error) {
-      console.error('Error fetching from Square:', error);
-    }
-
-    return NextResponse.json({ products: squareProducts });
+    console.log(`📊 Admin: Showing ${products.length} products from database`);
+    
+    return NextResponse.json({ products });
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Error fetching products from database:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+  } finally {
+    db.close();
   }
 }
 
@@ -245,6 +151,44 @@ async function postHandler(request: NextRequest) {
       );
     }
 
+    // Also create the product in our database
+    const db = new Database('data/porchrecords.db');
+    try {
+      const now = new Date().toISOString();
+      const createdItem = squareResponse.objects?.find((obj: Square.CatalogObject) => obj.type === 'ITEM');
+      const createdVariation = createdItem?.itemData?.variations?.[0];
+      
+      if (createdItem && createdVariation) {
+        db.prepare(`
+          INSERT INTO products (
+            id, title, price, description, image, artist, genre,
+            is_preorder, square_id, is_from_square, is_visible, stock_quantity,
+            stock_status, product_type, updated_at, created_at, last_synced_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          `square_${createdVariation.id}`,
+          productData.title,
+          productData.price,
+          productData.description || '',
+          '/store.webp',
+          productData.artist,
+          productData.genre || 'Uncategorized',
+          0, // is_preorder
+          createdVariation.id,
+          1, // is_from_square
+          productData.isVisible ? 1 : 0,
+          10, // stock_quantity
+          'in_stock',
+          'record',
+          now,
+          now,
+          now
+        );
+      }
+    } finally {
+      db.close();
+    }
+
     // Invalidate the products cache so new product appears immediately in the store
     invalidateProductsCache('product creation');
 
@@ -253,7 +197,7 @@ async function postHandler(request: NextRequest) {
     return NextResponse.json({
       success: true,
       product: createdItem,
-      message: 'Product created in Square successfully',
+      message: 'Product created in Square and database successfully',
     });
   } catch (error) {
     console.error('Error creating product:', error);

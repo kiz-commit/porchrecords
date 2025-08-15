@@ -1,38 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import Database from 'better-sqlite3';
 
-const merchCategoriesPath = path.join(process.cwd(), 'src', 'data', 'merchCategories.json');
-
-// GET - Load merch category assignments
+// GET - Load merch category assignments from database
 export async function GET() {
+  const db = new Database('data/porchrecords.db');
+  
   try {
-    if (!fs.existsSync(merchCategoriesPath)) {
-      return NextResponse.json({ assignments: [] });
-    }
-
-    const data = fs.readFileSync(merchCategoriesPath, 'utf8');
-    const merchCategories = JSON.parse(data);
-
-    // Convert to array format for easier management
-    const assignments = Object.entries(merchCategories).map(([productId, merchData]) => ({
-      productId,
-      productName: 'Unknown Product', // Would be fetched from Square
-      productType: (merchData as any).productType || 'merch',
-      merchCategory: (merchData as any).merchCategory || '',
-      size: (merchData as any).size,
-      color: (merchData as any).color,
-    }));
+    // Get all products with merch category assignments
+    const assignments = db.prepare(`
+      SELECT 
+        id as productId,
+        title as productName,
+        product_type as productType,
+        merch_category as merchCategory,
+        size,
+        color
+      FROM products 
+      WHERE merch_category IS NOT NULL AND merch_category != ''
+      ORDER BY title ASC
+    `).all() as any[];
 
     return NextResponse.json({ assignments });
   } catch (error) {
-    console.error('Failed to load merch categories:', error);
+    console.error('Failed to load merch categories from database:', error);
     return NextResponse.json({ error: 'Failed to load merch categories' }, { status: 500 });
+  } finally {
+    db.close();
   }
 }
 
-// POST - Assign merch category to product
+// POST - Assign merch category to product in database
 export async function POST(request: NextRequest) {
+  const db = new Database('data/porchrecords.db');
+  
   try {
     const { productId, productType, merchCategory, size, color } = await request.json();
 
@@ -40,27 +40,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Product ID, product type, and merch category are required' }, { status: 400 });
     }
 
-    // Load existing data
-    let merchCategories: Record<string, any> = {};
-    if (fs.existsSync(merchCategoriesPath)) {
-      const data = fs.readFileSync(merchCategoriesPath, 'utf8');
-      merchCategories = JSON.parse(data);
-    }
+    // Update product in database
+    const updateProduct = db.prepare(`
+      UPDATE products 
+      SET product_type = ?, merch_category = ?, size = ?, color = ?, updated_at = ?
+      WHERE id = ?
+    `);
 
-    // Update assignment
-    merchCategories[productId] = {
+    const result = updateProduct.run(
       productType,
       merchCategory,
-      size,
-      color,
-    };
+      size || null,
+      color || null,
+      new Date().toISOString(),
+      productId
+    );
 
-    // Save back to file
-    fs.writeFileSync(merchCategoriesPath, JSON.stringify(merchCategories, null, 2));
+    if (result.changes === 0) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to assign merch category:', error);
+    console.error('Failed to assign merch category in database:', error);
     return NextResponse.json({ error: 'Failed to assign merch category' }, { status: 500 });
+  } finally {
+    db.close();
   }
 } 

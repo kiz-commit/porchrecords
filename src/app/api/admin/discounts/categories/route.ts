@@ -1,79 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const PRODUCTS_FILE = path.join(process.cwd(), 'src', 'data', 'products.json');
-const MERCH_CATEGORIES_FILE = path.join(process.cwd(), 'src', 'data', 'merchCategories.json');
-
-// Helper function to read products from file
-function readProducts(): any[] {
-  try {
-    if (fs.existsSync(PRODUCTS_FILE)) {
-      const data = fs.readFileSync(PRODUCTS_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error reading products file:', error);
-  }
-  return [];
-}
-
-// Helper function to read merch categories from file
-function readMerchCategories(): any {
-  try {
-    if (fs.existsSync(MERCH_CATEGORIES_FILE)) {
-      const data = fs.readFileSync(MERCH_CATEGORIES_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error reading merch categories file:', error);
-  }
-  return {};
-}
+import Database from 'better-sqlite3';
 
 // GET - Get available categories for discounts
 export async function GET(request: NextRequest) {
+  const db = new Database('data/porchrecords.db');
+  
   try {
-    const products = readProducts();
-    const merchCategories = readMerchCategories();
+    // Get all products from database
+    const products = db.prepare(`
+      SELECT id, title, product_type, merch_category, genre
+      FROM products 
+      WHERE is_visible = 1
+      ORDER BY title ASC
+    `).all() as any[];
 
-    // Extract unique product types from products
-    const productTypes = new Set<string>();
-    products.forEach(product => {
-      if (product.productType) {
-        productTypes.add(product.productType);
-      }
-    });
+    // Get unique merch categories from database
+    const merchCategories = db.prepare(`
+      SELECT DISTINCT merch_category 
+      FROM products 
+      WHERE merch_category IS NOT NULL AND merch_category != '' AND is_visible = 1
+      ORDER BY merch_category
+    `).all() as any[];
 
-    // Extract unique product types from merchCategories file as well
-    Object.values(merchCategories).forEach((item: any) => {
-      if (item.productType && item.productType.trim() !== '') {
-        productTypes.add(item.productType);
-      }
-    });
+    // Get unique genres from database
+    const genres = db.prepare(`
+      SELECT DISTINCT genre 
+      FROM products 
+      WHERE genre IS NOT NULL AND genre != '' AND is_visible = 1
+      ORDER BY genre
+    `).all() as any[];
 
-    // Extract unique merch categories from merchCategories file
-    const merchCategorySet = new Set<string>();
-    Object.values(merchCategories).forEach((item: any) => {
-      if (item.merchCategory && item.merchCategory.trim() !== '') {
-        merchCategorySet.add(item.merchCategory);
-      }
-    });
-
-    // Convert sets to arrays and sort them
-    const productTypesArray = Array.from(productTypes).sort();
-    const merchCategoriesArray = Array.from(merchCategorySet).sort();
+    // Get unique product types from database
+    const productTypes = db.prepare(`
+      SELECT DISTINCT product_type 
+      FROM products 
+      WHERE product_type IS NOT NULL AND product_type != '' AND is_visible = 1
+      ORDER BY product_type
+    `).all() as any[];
 
     return NextResponse.json({
       success: true,
-      productTypes: productTypesArray,
-      merchCategories: merchCategoriesArray
+      products: products.map(p => ({
+        id: p.id,
+        title: p.title,
+        productType: p.product_type,
+        merchCategory: p.merch_category,
+        genre: p.genre
+      })),
+      categories: {
+        merchCategories: merchCategories.map(mc => mc.merch_category),
+        genres: genres.map(g => g.genre),
+        productTypes: productTypes.map(pt => pt.product_type)
+      },
+      fromDatabase: true
     });
+
   } catch (error) {
-    console.error('Error getting categories:', error);
+    console.error('Error fetching categories from database:', error);
     return NextResponse.json(
-      { error: 'Failed to get categories' },
+      { error: 'Failed to fetch categories' },
       { status: 500 }
     );
+  } finally {
+    db.close();
   }
 } 

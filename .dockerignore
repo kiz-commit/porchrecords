@@ -1,0 +1,41 @@
+# VCS
+#
+.git
+.gitignore
+
+# Node / Next.js
+#
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+
+# Local data and backups
+#
+backup/
+data/
+*.db
+*.db.*
+latest-dev.log
+
+# Tests and tooling
+#
+src/__tests__/
+e2e/
+playwright.config.ts
+jest.config.js
+jest.setup.js
+
+# OS files
+#
+.DS_Store
+
+# Editor
+#
+.vscode/
+.idea/
+
+# Misc
+#
+*.log
