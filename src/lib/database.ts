@@ -109,7 +109,7 @@ export async function initializeDatabase(): Promise<void> {
     )
   `);
 
-  // Create products table with correct schema
+  // Create products table with complete schema
   await database.exec(`
     CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY,
@@ -124,7 +124,34 @@ export async function initializeDatabase(): Promise<void> {
       is_preorder BOOLEAN DEFAULT 0,
       square_id TEXT,
       is_from_square BOOLEAN DEFAULT 0,
-      updated_at TEXT
+      updated_at TEXT,
+      is_visible BOOLEAN DEFAULT 1,
+      stock_quantity INTEGER DEFAULT 0,
+      stock_status TEXT DEFAULT 'in_stock',
+      product_type TEXT DEFAULT 'record',
+      merch_category TEXT,
+      size TEXT,
+      color TEXT,
+      mood TEXT,
+      format TEXT,
+      year TEXT,
+      label TEXT,
+      image_ids TEXT,
+      images TEXT,
+      preorder_release_date TEXT,
+      preorder_quantity INTEGER DEFAULT 0,
+      preorder_max_quantity INTEGER DEFAULT 0,
+      is_variable_pricing BOOLEAN DEFAULT 0,
+      min_price REAL,
+      max_price REAL,
+      created_at TEXT,
+      last_synced_at TEXT,
+      square_updated_at TEXT,
+      slug TEXT,
+      has_variations BOOLEAN DEFAULT 0,
+      variation_count INTEGER DEFAULT 0,
+      last_variation_sync TEXT,
+      variations TEXT
     )
   `);
 
