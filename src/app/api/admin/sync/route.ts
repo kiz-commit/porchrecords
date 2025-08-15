@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
         const existingProducts = readProductsFromDatabase();
         let newProducts = 0;
         let updatedProducts = 0;
+        let removedProducts = 0;
 
         if (response.items) {
           const squareProducts = response.items.map((item: any) => {
@@ -158,7 +159,26 @@ export async function POST(request: NextRequest) {
             };
           }).filter(Boolean);
 
-          // Process each product
+          // Get current Square product IDs
+          const currentSquareIds = squareProducts.map((p: any) => p.squareId);
+          
+          // Remove products that no longer exist in Square
+          const db = getDatabase();
+          try {
+            const productsToRemove = existingProducts.filter((p: any) => 
+              p.square_id && !currentSquareIds.includes(p.square_id)
+            );
+            
+            for (const product of productsToRemove) {
+              db.prepare('DELETE FROM products WHERE square_id = ?').run(product.square_id);
+              removedProducts++;
+              log.push(`Removed: ${product.title} (no longer in Square)`);
+            }
+          } finally {
+            db.close();
+          }
+
+          // Process each current product
           squareProducts.forEach((squareProduct: any) => {
             const existingProduct = existingProducts.find((p: any) => p.square_id === squareProduct.squareId);
             
@@ -175,7 +195,7 @@ export async function POST(request: NextRequest) {
             }
           });
           
-          log.push(`Pull complete: ${newProducts} new, ${updatedProducts} updated`);
+          log.push(`Pull complete: ${newProducts} new, ${updatedProducts} updated, ${removedProducts} removed`);
         }
       } catch (error) {
         log.push(`Error pulling from Square: ${error}`);
