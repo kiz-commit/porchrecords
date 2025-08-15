@@ -3,6 +3,7 @@ import squareClient from '@/lib/square';
 import { Square } from 'square';
 import Database from 'better-sqlite3';
 import { invalidateProductsCache } from '@/lib/cache-utils';
+import { withAdminAuth } from '@/lib/route-protection';
 
 // Helper function to convert BigInt to string for JSON serialization
 function convertBigIntToString(obj: any): any {
@@ -234,8 +235,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-// PATCH - Update a product in Square
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// PATCH - Update a product in Square (protected with admin auth)
+async function patchHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const productData = await request.json();
@@ -381,6 +382,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
   }
 }
+
+// Export PATCH with admin authentication
+export const PATCH = withAdminAuth(patchHandler);
 
 // DELETE - Remove a product from Square
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
