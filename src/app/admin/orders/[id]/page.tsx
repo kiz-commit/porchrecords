@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
 interface Order {
@@ -46,11 +47,7 @@ export default function OrderDetailPage() {
   const [notes, setNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
-  useEffect(() => {
-    fetchOrder();
-  }, [orderId]);
-
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/admin/orders/${orderId}`);
@@ -66,7 +63,11 @@ export default function OrderDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    fetchOrder();
+  }, [fetchOrder]);
 
   const handleStatusUpdate = async () => {
     if (!order || !newStatus) return;
@@ -182,12 +183,12 @@ export default function OrderDetailPage() {
               <h1 className="text-lg font-bold text-black font-mono">
                 ORDER #{order.orderNumber}
               </h1>
-              <a
+              <Link
                 href="/admin/orders"
                 className="text-black hover:text-gray-800 font-semibold font-mono"
               >
                 ← Back to Orders
-              </a>
+              </Link>
             </div>
           </div>
         </div>

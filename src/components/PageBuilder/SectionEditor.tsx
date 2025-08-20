@@ -109,7 +109,7 @@ export default function SectionEditor({ section, onClose }: SectionEditorProps) 
     }, 1000); // 1 second debounce
 
     setDebounceTimer(timer);
-  }, [section, updateSection, showRealTimePreview, section.id, debounceTimer]);
+  }, [section, updateSection, showRealTimePreview, debounceTimer]);
 
   // Cleanup timer on unmount
   useEffect(() => {

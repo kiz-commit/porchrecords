@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import AdminLayout from '@/components/AdminLayout';
 import { type StoreProduct } from '@/lib/types';
 
@@ -256,10 +257,12 @@ export default function AdminInventory() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-12 w-12">
-                          <img
+                          <Image
                             className="h-12 w-12 rounded-lg object-cover"
                             src={product.image || '/hero-image.jpg'}
                             alt={product.title}
+                            width={48}
+                            height={48}
                           />
                         </div>
                         <div className="ml-4">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useHomepage } from '@/contexts/HomepageContext';
@@ -37,11 +37,7 @@ export default function UpcomingShows({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadShows();
-  }, [homepageData]);
-
-  const loadShows = async () => {
+  const loadShows = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -90,7 +86,11 @@ export default function UpcomingShows({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [homepageData, maxShows]);
+
+  useEffect(() => {
+    loadShows();
+  }, [loadShows]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

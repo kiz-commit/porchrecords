@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 export default function DebugVoucherPage() {
   const [status, setStatus] = useState('Initializing...');
@@ -51,12 +52,12 @@ export default function DebugVoucherPage() {
         </div>
       )}
       <div className="mb-4">
-        <a 
+        <Link 
           href="/store/voucher-product/ABW6CPAJEC5OQ7Y2IS25BTFN"
           className="text-blue-600 hover:text-blue-800 underline"
         >
           Test Voucher Page
-        </a>
+        </Link>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { useCartContext } from '@/contexts/CartContext';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -95,7 +96,7 @@ function OrderConfirmationContent() {
     };
 
     init();
-  }, [searchParams, hasInitialized]);
+  }, [searchParams, hasInitialized, clearCart, markOrderCompleted]);
 
   // If after a short delay no orderId is present, show a friendly error
   useEffect(() => {
@@ -336,12 +337,12 @@ function OrderConfirmationContent() {
               <div className="text-red-600 text-6xl mb-4">❌</div>
               <h1 className="text-2xl font-bold mb-2 font-mono">Order Confirmation Error</h1>
               <p className="text-gray-600 mb-4 font-mono">{error || 'Unable to load order confirmation'}</p>
-              <a
+              <Link
                 href="/store"
                 className="inline-flex items-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-mono"
               >
                 Return to Store
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -472,41 +473,41 @@ function OrderConfirmationContent() {
 
           {/* Next Steps */}
           <div className="bg-blue-50 p-6 rounded-lg shadow-sm mb-6">
-            <h3 className="text-lg font-semibold mb-4 text-blue-900 font-mono">What's Next?</h3>
+            <h3 className="text-lg font-semibold mb-4 text-blue-900 font-mono">What&apos;s Next?</h3>
             <div className="space-y-3 text-blue-800">
               <div className="flex items-start">
                 <span className="text-blue-600 mr-3 font-mono">1.</span>
-                <p className="font-mono">You'll receive an email confirmation with your order details</p>
+                <p className="font-mono">You&apos;ll receive an email confirmation with your order details</p>
               </div>
               <div className="flex items-start">
                 <span className="text-blue-600 mr-3 font-mono">2.</span>
-                <p className="font-mono">We'll process your order and update you on the status</p>
+                <p className="font-mono">We&apos;ll process your order and update you on the status</p>
               </div>
               <div className="flex items-start">
                 <span className="text-blue-600 mr-3 font-mono">3.</span>
-                <p className="font-mono">For shipping orders, you'll receive tracking information</p>
+                <p className="font-mono">For shipping orders, you&apos;ll receive tracking information</p>
               </div>
               <div className="flex items-start">
                 <span className="text-blue-600 mr-3 font-mono">4.</span>
-                <p className="font-mono">For pickup orders, we'll contact you when ready</p>
+                <p className="font-mono">For pickup orders, we&apos;ll contact you when ready</p>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4">
-            <a
+            <Link
               href="/store"
               className="flex-1 text-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-semibold font-mono"
             >
               Continue Shopping
-            </a>
-            <a
+            </Link>
+            <Link
               href="/order-history"
               className="flex-1 text-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold font-mono"
             >
               View Order History
-            </a>
+            </Link>
           </div>
         </div>
       </div>

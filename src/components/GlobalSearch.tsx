@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { SearchResult, highlightSearchTerms } from '@/lib/search-utils';
@@ -51,6 +51,14 @@ export default function GlobalSearch({ isOpen, onClose, className = '' }: Global
   const router = useRouter();
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleResultClick = useCallback((result: SearchResult) => {
+    router.push(result.url);
+    onClose();
+    setQuery('');
+    setResults([]);
+    setSuggestions([]);
+  }, [router, onClose]);
 
   // Close search when clicking outside
   useEffect(() => {
@@ -110,7 +118,7 @@ export default function GlobalSearch({ isOpen, onClose, className = '' }: Global
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, query, results, suggestions, showSuggestions, selectedIndex, onClose]);
+  }, [isOpen, query, results, suggestions, showSuggestions, selectedIndex, onClose, handleResultClick]);
 
   // Load filter data
   useEffect(() => {
@@ -185,14 +193,6 @@ export default function GlobalSearch({ isOpen, onClose, className = '' }: Global
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleResultClick = (result: SearchResult) => {
-    router.push(result.url);
-    onClose();
-    setQuery('');
-    setResults([]);
-    setSuggestions([]);
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -465,7 +465,7 @@ export default function GlobalSearch({ isOpen, onClose, className = '' }: Global
           {hasSearched && !isLoading && results.length === 0 && (
             <div className="p-8 text-center">
               <div className="text-6xl mb-4">🔍</div>
-              <p className="font-mono text-lg text-black mb-2">No results found for "{query}"</p>
+              <p className="font-mono text-lg text-black mb-2">No results found for &quot;{query}&quot;</p>
               <p className="text-gray-600">Try different keywords or check your spelling</p>
             </div>
           )}

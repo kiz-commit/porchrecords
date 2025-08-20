@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import Link from 'next/link';
+import Image from 'next/image';
 import { type StoreProduct } from '@/lib/types';
 
 export default function AdminProducts() {
@@ -378,10 +379,12 @@ export default function AdminProducts() {
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
                           <div className="flex-shrink-0 h-12 w-12 ml-4">
-                            <img
+                            <Image
                               className="h-12 w-12 rounded-lg object-cover"
                               src={product.image || '/hero-image.jpg'}
                               alt={product.title}
+                              width={48}
+                              height={48}
                             />
                           </div>
                           <div className="ml-4">

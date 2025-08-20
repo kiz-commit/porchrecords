@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { use } from 'react';
 import AdminLayout from '@/components/AdminLayout';
@@ -51,11 +51,7 @@ export default function EditShow({ params }: { params: Promise<{ id: string }> }
     isPublished: false
   });
 
-  useEffect(() => {
-    fetchShow();
-  }, [id]);
-
-  const fetchShow = async () => {
+  const fetchShow = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch('/api/admin/shows');
@@ -87,7 +83,11 @@ export default function EditShow({ params }: { params: Promise<{ id: string }> }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id, router]);
+
+  useEffect(() => {
+    fetchShow();
+  }, [fetchShow]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;

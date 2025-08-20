@@ -122,7 +122,7 @@ export default function AdminPages() {
       }
     }
     loadPages();
-  }, []); // Only run on mount, not when cache changes
+  }, [cache]); // Include cache in dependencies
 
   const handleSave = async (updatedPage: PageContent) => {
     try {
@@ -485,7 +485,7 @@ export default function AdminPages() {
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
               <h3 className="text-lg font-semibold mb-4">Confirm Delete</h3>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete "{pageToDelete.title}"? This action cannot be undone.
+                Are you sure you want to delete &quot;{pageToDelete.title}&quot;? This action cannot be undone.
               </p>
               <div className="flex gap-3 justify-end">
                 <button

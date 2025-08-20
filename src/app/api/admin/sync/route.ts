@@ -170,9 +170,10 @@ export async function POST(request: NextRequest) {
             );
             
             for (const product of productsToRemove) {
-              db.prepare('DELETE FROM products WHERE square_id = ?').run(product.square_id);
+              const productData = product as { square_id: string; title: string };
+              db.prepare('DELETE FROM products WHERE square_id = ?').run(productData.square_id);
               removedProducts++;
-              log.push(`Removed: ${product.title} (no longer in Square)`);
+              log.push(`Removed: ${productData.title} (no longer in Square)`);
             }
           } finally {
             db.close();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Navigation from '@/components/Navigation';
@@ -31,14 +31,7 @@ function SearchPageContent() {
 
   const itemsPerPage = 20;
 
-  useEffect(() => {
-    if (query) {
-      setSearchInput(query);
-      performSearch(query, 1);
-    }
-  }, [query]);
-
-  const performSearch = async (searchQuery: string, page: number = 1) => {
+  const performSearch = useCallback(async (searchQuery: string, page: number = 1) => {
     if (!searchQuery.trim()) return;
 
     setIsLoading(true);
@@ -71,7 +64,14 @@ function SearchPageContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedTypes]);
+
+  useEffect(() => {
+    if (query) {
+      setSearchInput(query);
+      performSearch(query, 1);
+    }
+  }, [query, performSearch]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,7 +250,7 @@ function SearchPageContent() {
           {query && (
             <div className="mb-4">
               <p className="font-mono text-sm text-gray-600">
-                {total} result{total !== 1 ? 's' : ''} for "{query}"
+                {total} result{total !== 1 ? 's' : ''} for &quot;{query}&quot;
               </p>
             </div>
           )}
@@ -263,7 +263,7 @@ function SearchPageContent() {
           ) : filteredResults.length === 0 && query ? (
             <div className="text-center py-12">
               <div className="text-4xl mb-4">🔍</div>
-              <p className="font-mono text-lg mb-2">No results found for "{query}"</p>
+              <p className="font-mono text-lg mb-2">No results found for &quot;{query}&quot;</p>
               <p className="text-gray-600">Try different keywords or check your spelling</p>
             </div>
           ) : (

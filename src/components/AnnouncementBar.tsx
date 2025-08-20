@@ -51,7 +51,6 @@ export default function AnnouncementBar({
     };
     frame = window.requestAnimationFrame(step);
     return () => window.cancelAnimationFrame(frame);
-    // eslint-disable-next-line
   }, [isVisible, dimensions.text, dimensions.container]);
 
   if (!isVisible) return null;

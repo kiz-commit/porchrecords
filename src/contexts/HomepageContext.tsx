@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { HomepageConfig, HomepageSection } from '@/lib/types';
 import { fetchHomepageConfig, fetchHomepageSections, updateHomepageConfigClient } from '@/lib/client-config-utils';
 
@@ -63,7 +63,7 @@ export function HomepageProvider({ children }: HomepageProviderProps) {
   };
 
   // Load all homepage data in one optimized request
-  const loadHomepageData = async () => {
+  const loadHomepageData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -89,7 +89,7 @@ export function HomepageProvider({ children }: HomepageProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // Update homepage configuration
   const updateConfig = async (newConfig: Partial<HomepageConfig>) => {
@@ -121,7 +121,7 @@ export function HomepageProvider({ children }: HomepageProviderProps) {
   // Load data on mount
   useEffect(() => {
     loadHomepageData();
-  }, []);
+  }, [loadHomepageData]);
 
   const value: HomepageContextType = {
     config,

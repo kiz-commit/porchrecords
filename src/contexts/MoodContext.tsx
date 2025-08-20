@@ -1,64 +1,76 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { type TaxonomyItem } from '@/lib/taxonomy-utils';
-import { fetchMoodsWithEmojis, setMoodCache, isMoodCacheExpired } from '@/lib/mood-utils';
+import React, { createContext, useContext } from 'react';
 
 interface MoodContextType {
-  moods: TaxonomyItem[];
-  getMoodEmoji: (moodName: string) => string;
-  getMoodColor: (moodName: string) => string;
-  isLoading: boolean;
-  refreshMoods: () => Promise<void>;
+  getMoodEmoji: (mood: string) => string;
+  getMoodColor: (mood: string) => string;
 }
 
 const MoodContext = createContext<MoodContextType | undefined>(undefined);
 
-export function MoodProvider({ children }: { children: React.ReactNode }) {
-  const [moods, setMoods] = useState<TaxonomyItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+interface MoodProviderProps {
+  children: React.ReactNode;
+}
 
-  const loadMoods = async () => {
-    if (isMoodCacheExpired()) {
-      setIsLoading(true);
-      try {
-        const moodData = await fetchMoodsWithEmojis();
-        setMoods(moodData);
-        setMoodCache(moodData);
-      } catch (error) {
-        console.error('Error loading moods:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      setIsLoading(false);
-    }
+export function MoodProvider({ children }: MoodProviderProps) {
+  const getMoodEmoji = (mood: string): string => {
+    const moodEmojis: Record<string, string> = {
+      'energetic': '⚡',
+      'chill': '😌',
+      'melancholic': '🌧️',
+      'uplifting': '✨',
+      'dark': '🖤',
+      'romantic': '💕',
+      'nostalgic': '📷',
+      'experimental': '🔬',
+      'raw': '🔥',
+      'ethereal': '🌙',
+      'groovy': '🕺',
+      'atmospheric': '🌫️',
+      'intense': '💥',
+      'dreamy': '💭',
+      'aggressive': '👊',
+      'peaceful': '🕊️',
+      'mysterious': '🔮',
+      'playful': '🎈',
+      'serious': '🎭',
+      'wild': '🐺'
+    };
+    
+    return moodEmojis[mood.toLowerCase()] || '🎵';
   };
 
-  useEffect(() => {
-    loadMoods();
-  }, []);
-
-  const getMoodEmoji = (moodName: string): string => {
-    const mood = moods.find(m => m.name.toLowerCase() === moodName.toLowerCase());
-    return mood?.emoji || '';
-  };
-
-  const getMoodColor = (moodName: string): string => {
-    const mood = moods.find(m => m.name.toLowerCase() === moodName.toLowerCase());
-    return mood?.color || '';
-  };
-
-  const refreshMoods = async () => {
-    await loadMoods();
+  const getMoodColor = (mood: string): string => {
+    const moodColors: Record<string, string> = {
+      'energetic': '#FF6B35',
+      'chill': '#4ECDC4',
+      'melancholic': '#6C5CE7',
+      'uplifting': '#FFD93D',
+      'dark': '#2D3436',
+      'romantic': '#FF8A80',
+      'nostalgic': '#A29BFE',
+      'experimental': '#00B894',
+      'raw': '#E17055',
+      'ethereal': '#74B9FF',
+      'groovy': '#FDCB6E',
+      'atmospheric': '#636E72',
+      'intense': '#D63031',
+      'dreamy': '#FD79A8',
+      'aggressive': '#E84393',
+      'peaceful': '#00B894',
+      'mysterious': '#6C5CE7',
+      'playful': '#FDCB6E',
+      'serious': '#2D3436',
+      'wild': '#E17055'
+    };
+    
+    return moodColors[mood.toLowerCase()] || '#000000';
   };
 
   const value: MoodContextType = {
-    moods,
     getMoodEmoji,
     getMoodColor,
-    isLoading,
-    refreshMoods
   };
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageContent } from '@/lib/types';
 import { 
   AccessibilityChecker as Checker, 
@@ -27,7 +27,7 @@ export default function AccessibilityChecker({
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const checker = new Checker();
+  const checker = useMemo(() => new Checker(), []);
 
   // Analyze page accessibility
   const analyzePage = useCallback(async () => {
@@ -59,7 +59,7 @@ export default function AccessibilityChecker({
     } finally {
       setIsAnalyzing(false);
     }
-  }, [page, onIssuesFound]);
+  }, [page, onIssuesFound, checker]);
 
   // Extract data from page for accessibility analysis
   const extractPageData = (pageContent: PageContent) => {

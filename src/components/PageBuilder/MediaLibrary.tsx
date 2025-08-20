@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { MediaItem } from '@/lib/types';
 
 // Import ImageUpload directly to avoid chunk loading issues
@@ -114,19 +115,23 @@ export default function MediaLibrary({ onSelect, onClose, className = '' }: Medi
               >
                 {viewMode === 'grid' ? (
                   <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                    <img
+                    <Image
                       src={item.url}
                       alt={item.altText || item.name}
                       className="w-full h-full object-cover"
+                      width={200}
+                      height={200}
                     />
                   </div>
                 ) : (
                   <>
                     <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden mr-3">
-                      <img
+                      <Image
                         src={item.url}
                         alt={item.altText || item.name}
                         className="w-full h-full object-cover"
+                        width={64}
+                        height={64}
                       />
                     </div>
                     <div className="flex-1">

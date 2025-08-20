@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navigation from '@/components/Navigation';
+import Image from 'next/image';
 import { useCartContext } from '@/contexts/CartContext';
 import WebPaymentsCheckout from '@/components/WebPaymentsCheckout';
 
@@ -49,11 +50,7 @@ export default function CheckoutPage() {
     country: 'AU'
   });
 
-  useEffect(() => {
-    fetchAutomaticDiscounts();
-  }, [cart.items]);
-
-  const fetchAutomaticDiscounts = async () => {
+  const fetchAutomaticDiscounts = useCallback(async () => {
     if (cart.items.length === 0) {
       setAutomaticDiscounts([]);
       return;
@@ -85,7 +82,11 @@ export default function CheckoutPage() {
     } catch (error) {
       console.error('Error fetching automatic discounts:', error);
     }
-  };
+  }, [cart.items]);
+
+  useEffect(() => {
+    fetchAutomaticDiscounts();
+  }, [fetchAutomaticDiscounts]);
 
   const handlePaymentSuccess = () => {
     // Redirect is handled inside WebPaymentsCheckout with orderId & paymentId query params
@@ -228,7 +229,7 @@ export default function CheckoutPage() {
               {cart.items.map((item) => (
                 <div key={item.id} className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
-                    <img src={item.product.image} alt={item.product.title} className="w-full h-full object-cover" />
+                    <Image src={item.product.image} alt={item.product.title} className="w-full h-full object-cover" width={64} height={64} />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-base">{item.product.title}</h3>
@@ -379,7 +380,7 @@ export default function CheckoutPage() {
                 />
                 <div>
                   <span className="font-semibold">Shipping</span>
-                  <p className="text-sm text-gray-600">We'll ship to your address - $12.00</p>
+                  <p className="text-sm text-gray-600">We&apos;ll ship to your address - $12.00</p>
                   {hasVouchers && (
                     <p className="text-xs text-blue-600 mt-1">Voucher codes will be emailed regardless of delivery option</p>
                   )}

@@ -145,7 +145,7 @@ function VoucherSuccessContent() {
               <ul className="text-blue-800 space-y-2 text-left">
                 <li className="flex items-start">
                   <span className="text-blue-600 mr-2">1.</span>
-                  <span>Keep this voucher code safe - you'll need it during checkout</span>
+                  <span>Keep this voucher code safe - you&apos;ll need it during checkout</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-blue-600 mr-2">2.</span>

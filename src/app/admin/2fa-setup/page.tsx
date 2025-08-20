@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import AdminLayout from '@/components/AdminLayout';
 
 interface TOTPStatus {
@@ -186,10 +187,12 @@ export default function Admin2FASetup() {
                   <p className="text-blue-700 text-sm font-medium mb-1">Option A: Scan QR Code</p>
                   {totpStatus.qrCodeUrl && (
                     <div className="bg-white p-2 inline-block rounded border">
-                      <img 
+                      <Image 
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totpStatus.qrCodeUrl)}`}
                         alt="QR Code for TOTP"
                         className="w-32 h-32"
+                        width={128}
+                        height={128}
                       />
                     </div>
                   )}
@@ -285,7 +288,7 @@ export default function Admin2FASetup() {
           <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
             <h3 className="text-lg font-medium text-yellow-900 mb-2">Important Notes</h3>
             <ul className="text-yellow-800 text-sm space-y-1">
-              <li>• Keep your TOTP secret secure and don't share it with anyone</li>
+              <li>• Keep your TOTP secret secure and don&apos;t share it with anyone</li>
               <li>• If you lose access to your authenticator app, you may be locked out of the admin panel</li>
               <li>• Consider backing up your authenticator app or using a cloud-based solution like Authy</li>
               <li>• The secret is stored in your environment variables and should be kept secure</li>

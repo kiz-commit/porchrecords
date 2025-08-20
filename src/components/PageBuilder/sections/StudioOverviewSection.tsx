@@ -415,7 +415,7 @@ export default function StudioOverviewSection({ section, isPreview }: StudioOver
                     'var(--color-foreground)'
                 }}
               >
-                "{testimonial.text}"
+                &quot;{testimonial.text}&quot;
               </p>
             </div>
           </div>

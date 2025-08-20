@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import Navigation from '@/components/Navigation';
 import { useCartContext } from '@/contexts/CartContext';
 import { CompactErrorDisplay } from '@/components/ErrorDisplay';
@@ -37,17 +38,7 @@ export default function CartPage() {
 
 
 
-  // Check inventory and fetch automatic discounts when cart changes
-  useEffect(() => {
-    if (cart.items.length > 0) {
-      validateInventory(cart.items);
-      fetchAutomaticDiscounts();
-    } else {
-      setAutomaticDiscounts([]);
-    }
-  }, [cart.items, validateInventory]);
-
-  const fetchAutomaticDiscounts = async () => {
+  const fetchAutomaticDiscounts = useCallback(async () => {
     if (cart.items.length === 0) {
       setAutomaticDiscounts([]);
       return;
@@ -79,7 +70,17 @@ export default function CartPage() {
     } catch (error) {
       console.error('Error fetching automatic discounts:', error);
     }
-  };
+  }, [cart.items]);
+
+  // Check inventory and fetch automatic discounts when cart changes
+  useEffect(() => {
+    if (cart.items.length > 0) {
+      validateInventory(cart.items);
+      fetchAutomaticDiscounts();
+    } else {
+      setAutomaticDiscounts([]);
+    }
+  }, [cart.items, validateInventory, fetchAutomaticDiscounts]);
 
   // Handle inventory alert actions
   const handleInventoryUpdate = async (itemId: string, newQuantity: number) => {
@@ -261,10 +262,12 @@ export default function CartPage() {
                         <div className="flex items-center gap-4">
                           {/* Product Image */}
                           <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0">
-                            <img 
+                            <Image 
                               src={item.product.image} 
                               alt={item.product.title}
                               className="w-full h-full object-cover rounded-lg"
+                              width={80}
+                              height={80}
                             />
                           </div>
                           

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   analyzeSEO, 
   generateMetaTags, 
@@ -26,14 +26,7 @@ export default function SEOTools({ page, onUpdateMeta, className = '' }: SEOTool
   const [activeTab, setActiveTab] = useState<'analysis' | 'meta' | 'suggestions'>('analysis');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  useEffect(() => {
-    if (page) {
-      analyzePage();
-      generateMeta();
-    }
-  }, [page]);
-
-  const analyzePage = async () => {
+  const analyzePage = useCallback(async () => {
     setIsAnalyzing(true);
     try {
       const score = analyzeSEO(page);
@@ -43,12 +36,19 @@ export default function SEOTools({ page, onUpdateMeta, className = '' }: SEOTool
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [page]);
 
-  const generateMeta = () => {
+  const generateMeta = useCallback(() => {
     const meta = generateMetaTags(page);
     setMetaTags(meta);
-  };
+  }, [page]);
+
+  useEffect(() => {
+    if (page) {
+      analyzePage();
+      generateMeta();
+    }
+  }, [page, analyzePage, generateMeta]);
 
   const handleMetaUpdate = (field: keyof MetaTags, value: string | string[]) => {
     if (!metaTags) return;

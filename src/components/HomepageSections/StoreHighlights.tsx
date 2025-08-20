@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSectionTheme } from '@/lib/theme-utils';
@@ -45,11 +45,7 @@ export default function StoreHighlights({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadProducts();
-  }, [type, homepageData]);
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -98,7 +94,11 @@ export default function StoreHighlights({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [type, homepageData, maxProducts]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   const getTypeTitle = () => {
     switch (type) {

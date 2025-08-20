@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { type StoreProduct } from '@/lib/types';
 
 export interface CartItem {
@@ -43,7 +43,7 @@ export function useCart() {
   };
 
   // Enhanced cart saving with recovery data
-  const saveCartWithRecovery = (cartData: CartState) => {
+  const saveCartWithRecovery = useCallback((cartData: CartState) => {
     if (cartData.items.length === 0) {
       localStorage.removeItem('porch-cart-recovery');
       return;
@@ -62,10 +62,10 @@ export function useCart() {
     } catch (error) {
       console.error('Error saving cart recovery data:', error);
     }
-  };
+  }, []);
 
   // Check for recoverable cart
-  const checkForRecoverableCart = (currentCart: CartState) => {
+  const checkForRecoverableCart = useCallback((currentCart: CartState) => {
     try {
       const recoveryData = localStorage.getItem('porch-cart-recovery');
       if (!recoveryData) return null;
@@ -97,7 +97,7 @@ export function useCart() {
       localStorage.removeItem('porch-cart-recovery');
       return null;
     }
-  };
+  }, []);
 
   // Recover cart from recovery data
   const recoverCart = () => {
@@ -151,8 +151,17 @@ export function useCart() {
     }
   };
 
+  // Clear cart function
+  const clearCart = useCallback(() => {
+    setCart({
+      items: [],
+      totalItems: 0,
+      totalPrice: 0,
+    });
+  }, []);
+
   // Check if we should clear cart based on URL or recent order
-  const checkAndClearCartIfNeeded = () => {
+  const checkAndClearCartIfNeeded = useCallback(() => {
     if (typeof window === 'undefined') return;
     
     // Check if we're on a success page
@@ -176,7 +185,7 @@ export function useCart() {
         console.log('Cart cleared due to recent order');
       }
     }
-  };
+  }, [clearCart]);
 
   // Load cart and check for recovery on mount
   useEffect(() => {
@@ -205,7 +214,7 @@ export function useCart() {
 
     // Check and clear cart if needed (success page, recent order)
     checkAndClearCartIfNeeded();
-  }, []);
+  }, [checkAndClearCartIfNeeded, checkForRecoverableCart]);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
@@ -213,7 +222,7 @@ export function useCart() {
     localStorage.setItem('porch-cart', JSON.stringify(cart));
     // Also save recovery data
     saveCartWithRecovery(cart);
-  }, [cart]);
+  }, [cart, saveCartWithRecovery]);
 
   // Calculate totals whenever items change
   useEffect(() => {
@@ -275,14 +284,6 @@ export function useCart() {
           : item
       ),
     }));
-  };
-
-  const clearCart = () => {
-    setCart({
-      items: [],
-      totalItems: 0,
-      totalPrice: 0,
-    });
   };
 
   const markOrderCompleted = () => {

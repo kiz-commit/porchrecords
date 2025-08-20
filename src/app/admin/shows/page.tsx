@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
+import Image from 'next/image';
 import Link from 'next/link';
 
 interface Show {
@@ -238,10 +239,12 @@ export default function AdminShows() {
           {sortedShows.map((show) => (
             <div key={show.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 overflow-hidden">
               <div className="h-48 bg-gray-200 relative">
-                <img
+                <Image
                   src={show.image}
                   alt={show.title}
                   className="w-full h-full object-cover"
+                  width={400}
+                  height={192}
                 />
                 <div className="absolute top-3 right-3 flex flex-col gap-2">
                   <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { PageSection } from '@/lib/types';
 import ImageFallback from '../ImageFallback';
 
@@ -133,13 +133,13 @@ export default function AudioSection({ section, isPreview }: AudioSectionProps) 
     }
   };
 
-  const handleNextTrack = () => {
+  const handleNextTrack = useCallback(() => {
     if (currentTrackIndex < playlist.length - 1) {
       setCurrentTrackIndex(currentTrackIndex + 1);
     } else if (config?.loop) {
       setCurrentTrackIndex(0);
     }
-  };
+  }, [currentTrackIndex, playlist.length, config?.loop]);
 
   const handlePrevTrack = () => {
     if (currentTrackIndex > 0) {
@@ -189,7 +189,7 @@ export default function AudioSection({ section, isPreview }: AudioSectionProps) 
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
     };
-  }, [config?.loop]);
+  }, [config?.loop, handleNextTrack]);
 
   useEffect(() => {
     if (audioRef.current) {

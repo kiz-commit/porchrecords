@@ -89,27 +89,21 @@ export function useTheme() {
 export function useThemeUpdate() {
   const { updateTheme } = useTheme();
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const timeoutRef = React.useRef<NodeJS.Timeout | undefined>(undefined);
 
-  const debouncedUpdate = React.useCallback(
-    React.useMemo(
-      () => {
-        let timeoutId: NodeJS.Timeout;
-        return (newTheme: Partial<ThemeConfig>) => {
-          clearTimeout(timeoutId);
-          timeoutId = setTimeout(async () => {
-            setIsUpdating(true);
-            try {
-              await updateTheme(newTheme);
-            } finally {
-              setIsUpdating(false);
-            }
-          }, 300); // 300ms debounce
-        };
-      },
-      [updateTheme]
-    ),
-    [updateTheme]
-  );
+  const debouncedUpdate = React.useCallback((newTheme: Partial<ThemeConfig>) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(async () => {
+      setIsUpdating(true);
+      try {
+        await updateTheme(newTheme);
+      } finally {
+        setIsUpdating(false);
+      }
+    }, 300); // 300ms debounce
+  }, [updateTheme]);
 
   return { updateTheme: debouncedUpdate, isUpdating };
 } 

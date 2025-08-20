@@ -146,7 +146,7 @@ export default function TestimonialsSection({ section, isPreview }: Testimonials
               'var(--color-foreground)'
           }}
         >
-          "{testimonial.content}"
+          &quot;{testimonial.content}&quot;
         </p>
       </blockquote>
 

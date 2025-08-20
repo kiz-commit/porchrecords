@@ -69,7 +69,7 @@ export function HomepageClient({ homepageData, homepageConfig }: HomepageClientP
 
     // Fetch updated images from API in background
     fetchHeroImages();
-  }, []);
+  }, [heroImages]);
 
   // Preload next image for smoother transitions
   useEffect(() => {

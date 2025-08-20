@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 
 interface NavItem {
@@ -19,11 +19,7 @@ export default function AdminNavigation() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingChildId, setEditingChildId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchNavigation();
-  }, []);
-
-  const fetchNavigation = async () => {
+  const fetchNavigation = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch('/api/admin/navigation');
@@ -37,7 +33,11 @@ export default function AdminNavigation() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchNavigation();
+  }, [fetchNavigation]);
 
   const getDefaultNavigation = (): NavItem[] => [
     {

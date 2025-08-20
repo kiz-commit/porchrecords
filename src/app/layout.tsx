@@ -5,7 +5,6 @@ import { CartProvider } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { HomepageProvider } from "@/contexts/HomepageContext";
 import { AnnouncementBarProvider } from "@/contexts/AnnouncementBarContext";
-import { MoodProvider } from "@/contexts/MoodContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PageTransition from "@/components/PageTransition";
 import { ThemeInitializer } from "@/components/ThemeInitializer";
@@ -100,8 +99,7 @@ export default async function RootLayout({
           <ThemeProvider>
             <HomepageProvider>
               <AnnouncementBarProvider>
-                <MoodProvider>
-                  <CartProvider>
+                <CartProvider>
                   <ThemeHydrator>
                     <PageTransition>
                       <AnnouncementBarWrapper />
@@ -112,8 +110,7 @@ export default async function RootLayout({
                       </div>
                     </PageTransition>
                   </ThemeHydrator>
-                  </CartProvider>
-                </MoodProvider>
+                </CartProvider>
               </AnnouncementBarProvider>
             </HomepageProvider>
           </ThemeProvider>

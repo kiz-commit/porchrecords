@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PageSection } from '@/lib/types';
 import ImageFallback from '../ImageFallback';
 
@@ -30,7 +30,7 @@ export default function SocialFeedSection({ section, isPreview }: SocialFeedSect
   const [loading, setLoading] = useState(true);
 
   // Default social posts if no API integration
-  const defaultPosts: SocialPost[] = [
+  const defaultPosts: SocialPost[] = useMemo(() => [
     {
       id: '1',
       platform: 'instagram',
@@ -104,7 +104,7 @@ export default function SocialFeedSection({ section, isPreview }: SocialFeedSect
       author: 'Porch Records',
       authorAvatar: '/placeholder-avatar.jpg'
     }
-  ];
+  ], []);
 
   const getPaddingClass = () => {
     switch (config?.padding) {
@@ -351,7 +351,7 @@ export default function SocialFeedSection({ section, isPreview }: SocialFeedSect
     };
 
     loadPosts();
-  }, []);
+  }, [defaultPosts]);
 
   // Filter posts by platform if specified
   const filteredPosts = config?.feedType && config.feedType !== 'all'

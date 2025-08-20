@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface Product {
   id: string;
@@ -248,10 +249,12 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             {imagesOrder.length > 0 ? (
               imagesOrder.map((img, idx) => (
                 <div key={img.id} className="relative group">
-                  <img
+                  <Image
                     src={img.url}
                     alt={`Product image ${idx + 1}`}
                     className="w-32 h-32 object-cover rounded shadow border"
+                    width={128}
+                    height={128}
                     onError={e => (e.currentTarget.src = '/store.webp')}
                   />
                   <div className="absolute top-1 right-1 flex gap-1 opacity-80 group-hover:opacity-100">

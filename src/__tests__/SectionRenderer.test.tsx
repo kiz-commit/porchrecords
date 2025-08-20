@@ -17,7 +17,7 @@ jest.mock('@/components/PageBuilder/ErrorBoundary', () => {
 // Mock Next.js Image component
 jest.mock('next/image', () => {
   return function MockImage({ src, alt, ...props }: any) {
-    return <img src={src} alt={alt} {...props} data-testid="next-image" />
+    return <img src={src} alt={alt} {...props} data-testid="next-image" width={100} height={100} />
   }
 })
 

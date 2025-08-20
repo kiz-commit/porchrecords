@@ -57,7 +57,7 @@ export default function SiteConfigPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Site Configuration</h1>
           <p className="text-gray-600">
-            Customize your site's appearance and homepage layout. Changes are applied in real-time.
+            Customize your site&apos;s appearance and homepage layout. Changes are applied in real-time.
           </p>
         </div>
 

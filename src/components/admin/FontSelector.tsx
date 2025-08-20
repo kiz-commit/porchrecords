@@ -174,7 +174,7 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
               ))
             ) : (
               <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                No fonts found matching "{searchTerm}"
+                No fonts found matching &quot;{searchTerm}&quot;
               </div>
             )}
           </div>

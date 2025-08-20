@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PageSection } from '@/lib/types';
 import ImageFallback from '../ImageFallback';
 
@@ -31,7 +31,7 @@ export default function ShowsSection({ section, isPreview }: ShowsSectionProps) 
   const [loading, setLoading] = useState(true);
 
   // Default shows if no API integration
-  const defaultShows: Show[] = [
+  const defaultShows: Show[] = useMemo(() => [
     {
       id: '1',
       title: 'Local Band Night',
@@ -92,7 +92,7 @@ export default function ShowsSection({ section, isPreview }: ShowsSectionProps) 
       status: 'upcoming',
       genre: 'Electronic'
     }
-  ];
+  ], []);
 
   const getPaddingClass = () => {
     switch (config?.padding) {
@@ -372,7 +372,7 @@ export default function ShowsSection({ section, isPreview }: ShowsSectionProps) 
     };
 
     loadShows();
-  }, []);
+  }, [defaultShows]);
 
   // Filter shows by status if specified
   const filteredShows = config?.statusFilter 

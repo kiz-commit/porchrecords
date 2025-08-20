@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { type TaxonomyItem } from '@/lib/taxonomy-utils';
 import EmojiPicker from './EmojiPicker';
 
@@ -31,11 +31,7 @@ export default function TaxonomyManager({ initialType = 'mood' }: TaxonomyManage
     tags: 0
   });
 
-  useEffect(() => {
-    loadItems();
-  }, [activeType]);
-
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/admin/taxonomy?type=${activeType}`);
@@ -48,14 +44,18 @@ export default function TaxonomyManager({ initialType = 'mood' }: TaxonomyManage
       const statsResponse = await fetch('/api/admin/taxonomy');
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setStats(statsData.metadata?.byType || stats);
+        setStats(statsData.metadata?.byType || { categories: 0, tags: 0 });
       }
     } catch (error) {
       console.error('Error loading taxonomy items:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeType]);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,7 +1,7 @@
 "use client";
 
 import AdminLayout from '@/components/AdminLayout';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   EyeIcon, 
   ShoppingCartIcon, 
@@ -49,11 +49,7 @@ export default function InsightsPage() {
   const [reengagementItems, setReengagementItems] = useState<ReengagementItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchInsightsData();
-  }, [timeRange]);
-
-  const fetchInsightsData = async () => {
+  const fetchInsightsData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch analytics data from API
@@ -93,7 +89,11 @@ export default function InsightsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    fetchInsightsData();
+  }, [fetchInsightsData]);
 
 
 

@@ -168,7 +168,7 @@ export default function OrderHistoryPage() {
                   <div className="text-blue-600 text-6xl mb-4">🔐</div>
                   <h3 className="text-xl font-semibold mb-2 font-mono">Verify Your Identity</h3>
                   <p className="text-gray-600 font-mono">
-                    Enter your email address to view your order history. For security, we'll verify your identity.
+                    Enter your email address to view your order history. For security, we&apos;ll verify your identity.
                   </p>
                 </div>
 
@@ -202,7 +202,7 @@ export default function OrderHistoryPage() {
                         placeholder="e.g., 1753225211148 (just the number)"
                       />
                       <p className="text-xs text-gray-500 mt-1 font-mono">
-                        Just enter the number - we'll add the "order-" prefix automatically
+                        Just enter the number - we&apos;ll add the &quot;order-&quot; prefix automatically
                       </p>
                     </div>
 
@@ -238,7 +238,7 @@ export default function OrderHistoryPage() {
                 <div className="mt-8 p-4 bg-blue-50 rounded-lg">
                   <h4 className="font-semibold mb-2 text-blue-900 font-mono">Need Help?</h4>
                   <p className="text-sm text-blue-800 mb-3 font-mono">
-                    If you're having trouble accessing your orders, you can:
+                    If you&apos;re having trouble accessing your orders, you can:
                   </p>
                   <ul className="text-sm text-blue-800 space-y-1 font-mono">
                     <li>• Contact us at info@porchrecords.com.au</li>
