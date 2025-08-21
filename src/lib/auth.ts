@@ -12,7 +12,8 @@ import {
   logSecurityEvent,
   getClientIP,
   getUserAgent,
-  checkRateLimit
+  checkRateLimit,
+  getRateLimitConfig
 } from './admin-security';
 
 // Lazy load speakeasy only when needed
@@ -52,7 +53,8 @@ export async function verifyCredentials(username: string, password: string, requ
   const userAgent = getUserAgent(request);
   
   // Check rate limiting
-  if (!checkRateLimit(ip, 5, 15)) {
+  const loginConfig = getRateLimitConfig('login');
+  if (!checkRateLimit(ip, loginConfig.maxRequests, loginConfig.windowMinutes)) {
     await logSecurityEvent({
       username,
       action: 'RATE_LIMITED',

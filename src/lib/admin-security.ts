@@ -464,29 +464,13 @@ export function getUserAgent(request: NextRequest): string {
 // Rate limiting for API endpoints
 const rateLimitStore = new Map<string, { count: number; lastReset: number }>();
 
-// Verify admin authentication from request
-export async function verifyAdminAuth(request: NextRequest): Promise<{ isValid: boolean; username?: string }> {
-  try {
-    // Get session token from Authorization header or cookies
-    const authHeader = request.headers.get('authorization');
-    const sessionToken = authHeader?.replace('Bearer ', '') || request.cookies.get('admin-session')?.value;
-    
-    if (!sessionToken) {
-      return { isValid: false };
-    }
-    
-    const currentIp = getClientIP(request);
-    const sessionResult = await validateSession(sessionToken, currentIp);
-    
-    return {
-      isValid: sessionResult.valid,
-      username: sessionResult.username
-    };
-  } catch (error) {
-    console.error('Error verifying admin auth:', error);
-    return { isValid: false };
-  }
-}
+// Rate limiting configuration - more permissive for legitimate admin usage
+const RATE_LIMIT_CONFIG = {
+  LOGIN_ATTEMPTS: { maxRequests: 10, windowMinutes: 15 }, // Increased from 5 to 10
+  GENERAL_ADMIN: { maxRequests: 500, windowMinutes: 15 }, // Increased from 100 to 500
+  SENSITIVE_OPERATIONS: { maxRequests: 100, windowMinutes: 15 }, // Increased from 20 to 100
+  API_ENDPOINTS: { maxRequests: 1000, windowMinutes: 15 }, // New category for general API calls
+};
 
 export function checkRateLimit(ip: string, maxRequests: number = 10, windowMinutes: number = 15): boolean {
   const now = Date.now();
@@ -514,4 +498,54 @@ export function checkRateLimit(ip: string, maxRequests: number = 10, windowMinut
   // Increment count
   current.count++;
   return true;
+}
+
+// Helper function to get rate limit config by type
+export function getRateLimitConfig(type: 'login' | 'general' | 'sensitive' | 'api') {
+  switch (type) {
+    case 'login':
+      return RATE_LIMIT_CONFIG.LOGIN_ATTEMPTS;
+    case 'general':
+      return RATE_LIMIT_CONFIG.GENERAL_ADMIN;
+    case 'sensitive':
+      return RATE_LIMIT_CONFIG.SENSITIVE_OPERATIONS;
+    case 'api':
+      return RATE_LIMIT_CONFIG.API_ENDPOINTS;
+    default:
+      return RATE_LIMIT_CONFIG.GENERAL_ADMIN;
+  }
+}
+
+// Function to clear rate limits for testing/debugging (use with caution)
+export function clearRateLimits(ip?: string): void {
+  if (ip) {
+    rateLimitStore.delete(ip);
+    rateLimitStore.delete(`sensitive-${ip}`);
+  } else {
+    rateLimitStore.clear();
+  }
+}
+
+// Verify admin authentication from request
+export async function verifyAdminAuth(request: NextRequest): Promise<{ isValid: boolean; username?: string }> {
+  try {
+    // Get session token from Authorization header or cookies
+    const authHeader = request.headers.get('authorization');
+    const sessionToken = authHeader?.replace('Bearer ', '') || request.cookies.get('admin-session')?.value;
+    
+    if (!sessionToken) {
+      return { isValid: false };
+    }
+    
+    const currentIp = getClientIP(request);
+    const sessionResult = await validateSession(sessionToken, currentIp);
+    
+    return {
+      isValid: sessionResult.valid,
+      username: sessionResult.username
+    };
+  } catch (error) {
+    console.error('Error verifying admin auth:', error);
+    return { isValid: false };
+  }
 }

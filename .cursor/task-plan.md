@@ -83,6 +83,24 @@ Ensure inventory (incl. preorder capacity) is updated atomically with payments w
     - Deployed to production successfully
     - Route now accessible at https://porch-records.fly.dev/admin/taxonomy
 
+### New (Phase 13) Quick Task
+- **Task 13.x: Fix Taxonomy CRUD Operations** — `[x]` done
+  - **Issue**: Users couldn't add or delete taxonomy items despite the page loading
+  - **Root Cause**: Taxonomy API routes were not protected with authentication middleware
+  - **Solution**: Added `withAdminAuth` wrapper to all taxonomy API routes
+  - **Files modified**:
+    - `src/app/api/admin/taxonomy/route.ts` - Added authentication to GET/POST
+    - `src/app/api/admin/taxonomy/[id]/route.ts` - Added authentication to GET/PUT/DELETE
+    - `src/app/api/admin/taxonomy/reorder/route.ts` - Added authentication to POST
+  - **Success criteria**:
+    - API routes return 401 when not authenticated (security)
+    - CRUD operations work when properly authenticated
+    - All taxonomy operations (add, edit, delete, reorder) functional
+  - **Test results**: 
+    - API endpoints now properly return 401 Unauthorized when not authenticated
+    - Build and deployment successful
+    - Taxonomy management fully functional in production
+
 ## Previous Work (Completed)
 - **Phase 1-8: Page Builder System** — ✅ All completed (see history below)
 - **Phase 9: Security & Authentication** — ✅ **COMPLETED** - Enhanced security system with 2FA, secure sessions, audit logging

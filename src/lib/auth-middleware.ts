@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from './database';
-import { getClientIP, getUserAgent, logSecurityEvent, checkRateLimit } from './admin-security';
+import { getClientIP, getUserAgent, logSecurityEvent, checkRateLimit, getRateLimitConfig } from './admin-security';
 
 // Simple session validation for middleware (without full database lookup)
 async function validateSessionToken(sessionToken: string, jwtToken: string): Promise<{ valid: boolean; username?: string; requires2FA?: boolean; twoFactorVerified?: boolean }> {
@@ -66,7 +66,8 @@ export async function requireAdminAuth(request: NextRequest): Promise<NextRespon
   const userAgent = getUserAgent(request);
 
   // Rate limiting for admin routes
-  if (!checkRateLimit(ip, 100, 15)) { // 100 requests per 15 minutes for general admin access
+  const generalConfig = getRateLimitConfig('general');
+  if (!checkRateLimit(ip, generalConfig.maxRequests, generalConfig.windowMinutes)) {
     await logSecurityEvent({
       username: 'unknown',
       action: 'ADMIN_RATE_LIMITED',
@@ -140,7 +141,8 @@ export async function requireSensitiveAdminAuth(request: NextRequest): Promise<N
   const ip = getClientIP(request);
   
   // More restrictive rate limiting for sensitive operations
-  if (!checkRateLimit(`sensitive-${ip}`, 20, 15)) { // 20 requests per 15 minutes for sensitive operations
+  const sensitiveConfig = getRateLimitConfig('sensitive');
+  if (!checkRateLimit(`sensitive-${ip}`, sensitiveConfig.maxRequests, sensitiveConfig.windowMinutes)) {
     return NextResponse.json(
       { error: 'Too many sensitive operations. Please try again later.' },
       { status: 429 }

@@ -14,6 +14,8 @@ export default function AdminDashboard() {
   });
   const [isRefreshingCache, setIsRefreshingCache] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+  const [isClearingRateLimits, setIsClearingRateLimits] = useState(false);
+  const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -123,6 +125,31 @@ export default function AdminDashboard() {
       setRefreshMessage('Cache refresh failed: unexpected error');
     } finally {
       setIsRefreshingCache(false);
+    }
+  };
+
+  const clearRateLimits = async () => {
+    try {
+      setIsClearingRateLimits(true);
+      setRateLimitMessage(null);
+      
+      const res = await fetch('/api/admin/clear-rate-limits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const data = await res.json();
+      if (!res.ok || data?.success !== true) {
+        setRateLimitMessage(`Failed to clear rate limits: ${data?.error || res.statusText}`);
+        return;
+      }
+      
+      setRateLimitMessage(`Rate limits cleared successfully at ${new Date().toLocaleTimeString()}`);
+    } catch (error) {
+      console.error('Error clearing rate limits:', error);
+      setRateLimitMessage('Failed to clear rate limits: unexpected error');
+    } finally {
+      setIsClearingRateLimits(false);
     }
   };
 
@@ -275,6 +302,45 @@ export default function AdminDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   Refresh Cache
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Rate Limit Controls */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-8">
+        <div className="flex items-center justify-between gap-4 flex-col sm:flex-row">
+          <div className="text-sm text-gray-700">
+            <span className="font-semibold">Clear Rate Limits</span>
+            <span className="text-gray-500"> — clears rate limits for your IP if you're getting "too many requests" errors</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {rateLimitMessage && (
+              <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                {rateLimitMessage}
+              </span>
+            )}
+            <button
+              onClick={clearRateLimits}
+              disabled={isClearingRateLimits}
+              className={`px-4 py-2 rounded-lg text-white flex items-center justify-center ${isClearingRateLimits ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}
+            >
+              {isClearingRateLimits ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                  </svg>
+                  Clearing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear Rate Limits
                 </>
               )}
             </button>
