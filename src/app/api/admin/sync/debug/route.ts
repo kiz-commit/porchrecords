@@ -17,7 +17,8 @@ export async function POST() {
     
     console.log('🔍 Debug: Search request:', JSON.stringify(searchRequest, null, 2));
     
-    const response = await squareClient.catalog.searchItems(searchRequest);
+    const catalog = await squareClient.catalog();
+    const response = await catalog.searchItems(searchRequest);
     
     console.log('🔍 Debug: Response structure:', {
       hasItems: !!response.items,

@@ -20,7 +20,8 @@
     "setup-inventory": "node scripts/setup-inventory.js",
     "migrate-db": "node scripts/migrate-to-database.js",
     "migrate-config": "tsx scripts/migrate-configuration.ts",
-    "cleanup-test": "node scripts/cleanup-test-data.js"
+    "cleanup-test": "node scripts/cleanup-test-data.js",
+    "init-site-config": "node scripts/initialize-site-config.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.4",

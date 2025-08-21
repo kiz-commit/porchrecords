@@ -112,7 +112,8 @@ export async function POST(request: NextRequest) {
       log.push('Pulling products from Square...');
       
       try {
-        const response = await squareClient.catalog.searchItems({});
+        const catalog = await squareClient.catalog();
+        const response = await catalog.searchItems({});
         // Safely stringify BigInt values for logging
         function replacer(key: string, value: any) {
           return typeof value === 'bigint' ? value.toString() : value;
@@ -220,7 +221,8 @@ export async function POST(request: NextRequest) {
             }
 
             // Create item in Square
-            const squareResponse = await squareClient.catalog.batchUpsert({
+            const catalog = await squareClient.catalog();
+            const squareResponse = await catalog.batchUpsert({
               batches: [
                 {
                   objects: [

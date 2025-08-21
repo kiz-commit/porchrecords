@@ -31,7 +31,8 @@ async function getHandler(request: NextRequest) {
       } : undefined
     };
 
-    const response = await squareClient.orders.search(searchRequest);
+    const ordersApi = await squareClient.orders();
+    const response = await ordersApi.search(searchRequest);
     const orders = (response.orders || []).map((order: any) => {
       const lineItems = (order.lineItems || []).map((item: any) => ({
         name: item.name,

@@ -10,7 +10,8 @@ async function getSquareInventory(variationId: string): Promise<{ quantity: numb
       return { quantity: 0, status: 'out_of_stock' };
     }
 
-    const inventoryResponse = await squareClient.inventory.batchGetCounts({
+    const inventory = await squareClient.inventory();
+    const inventoryResponse = await inventory.batchGetCounts({
       locationIds: [locationId],
       catalogObjectIds: [variationId],
     });

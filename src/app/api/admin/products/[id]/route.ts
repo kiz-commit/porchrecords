@@ -58,7 +58,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
     
     // Fetch the product from Square as fallback
-    const response = await squareClient.catalog.searchItems({});
+    const catalog = await squareClient.catalog();
+    const response = await catalog.searchItems({});
     if (!response.items) {
       return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
     }
@@ -93,7 +94,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (imageIds.length > 0) {
       images = await Promise.all(imageIds.map(async (imageId: string) => {
         try {
-          const imageResponse = await squareClient.catalog.object.get({ objectId: imageId });
+          const imageResponse = await catalog.object.get({ objectId: imageId });
           if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
             return { id: imageId, url: imageResponse.object.imageData.url || `/store.webp` };
           } else {
@@ -114,7 +115,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     try {
       const locationId = process.env.SQUARE_LOCATION_ID;
       if (locationId) {
-        const inventoryResponse = await squareClient.inventory.batchGetCounts({
+        const inventory = await squareClient.inventory();
+        const inventoryResponse = await inventory.batchGetCounts({
           locationIds: [locationId],
           catalogObjectIds: [variation.id],
         });
@@ -242,7 +244,8 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
     const productData = await request.json();
     
     // First, find the item that contains this variation
-    const searchResponse = await squareClient.catalog.searchItems({});
+    const catalog = await squareClient.catalog();
+    const searchResponse = await catalog.searchItems({});
     if (!searchResponse.items) {
       return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
     }
@@ -390,7 +393,8 @@ export const PATCH = withAdminAuth(patchHandler);
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await squareClient.catalog.object.delete({ objectId: id });
+    const catalog = await squareClient.catalog();
+    await catalog.object.delete({ objectId: id });
     
     // Invalidate the products cache so changes appear immediately in the store
     invalidateProductsCache('product deletion');

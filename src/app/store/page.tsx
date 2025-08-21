@@ -1,6 +1,6 @@
 import StoreClientPage from '@/components/StoreClientPage';
 import { getTaxonomyByType } from '@/lib/taxonomy-utils';
-import Database from 'better-sqlite3';
+import { getDatabase } from '@/lib/database';
 
 // Force dynamic rendering to avoid static generation issues with database
 export const dynamic = 'force-dynamic';
@@ -27,29 +27,30 @@ export default async function Store() {
     // Fallback to empty products list
   }
 
-  // Load categories, genres, and moods from database
+  // Load categories, genres, and moods from database using proper database utility
   let allGenres: string[] = [];
   let allMerchCategories: string[] = [];
   let allMoods: string[] = [];
 
-  const db = new Database('data/porchrecords.db');
   try {
+    const db = await getDatabase();
+    
     // Get genres from database
-    const genres = db.prepare(`
+    const genres = await db.all(`
       SELECT DISTINCT genre 
       FROM products 
       WHERE genre IS NOT NULL AND genre != '' AND is_visible = 1
       ORDER BY genre
-    `).all() as any[];
+    `) as any[];
     allGenres = genres.map(g => g.genre);
 
     // Get merch categories from database
-    const merchCategories = db.prepare(`
+    const merchCategories = await db.all(`
       SELECT DISTINCT merch_category 
       FROM products 
       WHERE merch_category IS NOT NULL AND merch_category != '' AND is_visible = 1
       ORDER BY merch_category
-    `).all() as any[];
+    `) as any[];
     allMerchCategories = merchCategories.map(mc => mc.merch_category);
 
     // Try to load moods from new taxonomy system first
@@ -58,12 +59,12 @@ export default async function Store() {
       allMoods = taxonomyMoods.map(mood => mood.name);
     } else {
       // Fallback to database if taxonomy system is empty
-      const moods = db.prepare(`
+      const moods = await db.all(`
         SELECT DISTINCT mood 
         FROM products 
         WHERE mood IS NOT NULL AND mood != '' AND is_visible = 1
         ORDER BY mood
-      `).all() as any[];
+      `) as any[];
       allMoods = moods.map(m => m.mood);
     }
   } catch (error) {
@@ -72,8 +73,6 @@ export default async function Store() {
     allGenres = [];
     allMerchCategories = [];
     allMoods = [];
-  } finally {
-    db.close();
   }
 
   return <StoreClientPage 

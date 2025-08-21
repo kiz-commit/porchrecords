@@ -46,13 +46,14 @@ export async function POST() {
       ? { enabledLocationIds: [locationId] }
       : {};
     
-    const response = await squareClient.catalog.searchItems(searchRequest);
+    const catalog = await squareClient.catalog();
+    const response = await catalog.searchItems(searchRequest);
     let items = response.items || [];
     
     if (items.length === 0 && locationId) {
       console.log('⚠️  No items with location filter. Falling back to unfiltered fetch (sandbox support)...');
       try {
-        const fallback = await squareClient.catalog.searchItems({});
+        const fallback = await catalog.searchItems({});
         items = fallback.items || [];
         console.log(`✅ Fallback fetched ${items.length} items from Square`);
       } catch (e) {

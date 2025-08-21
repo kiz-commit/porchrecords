@@ -37,7 +37,8 @@ async function hasLocationInventory(variationId: string): Promise<boolean> {
     }
 
     // Check if this variation has inventory at the configured location
-    const inventoryResponse = await squareClient.inventory.batchGetCounts({
+    const inventory = await squareClient.inventory();
+    const inventoryResponse = await inventory.batchGetCounts({
       locationIds: [locationId],
       catalogObjectIds: [variationId],
     });
@@ -134,7 +135,8 @@ export async function GET() {
             const fetchedImages = [];
             
             for (const imageId of imageIds) {
-              const imageResponse = await squareClient.catalog.object.get({ 
+              const catalog = await squareClient.catalog();
+              const imageResponse = await catalog.object.get({ 
                 objectId: imageId 
               });
               if (imageResponse.object && imageResponse.object.type === 'IMAGE') {

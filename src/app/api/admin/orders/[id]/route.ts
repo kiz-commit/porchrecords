@@ -25,7 +25,8 @@ async function getHandler(
       }
     };
     
-    const searchResponse = await squareClient.orders.search(searchRequest);
+    const orders = await squareClient.orders();
+    const searchResponse = await orders.search(searchRequest);
     
     if (!searchResponse.orders || searchResponse.orders.length === 0) {
       return NextResponse.json(

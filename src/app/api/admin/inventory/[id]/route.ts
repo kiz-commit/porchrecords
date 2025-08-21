@@ -27,7 +27,8 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
 
     try {
       // Get current inventory count
-      const currentInventory = await squareClient.inventory.batchGetCounts({
+      const inventory = await squareClient.inventory();
+      const currentInventory = await inventory.batchGetCounts({
         locationIds: [locationId],
         catalogObjectIds: [id],
       });
@@ -43,7 +44,7 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
 
       if (adjustment > 0) {
         // Increase stock
-        await squareClient.inventory.batchCreateChanges({
+        await inventory.batchCreateChanges({
           changes: [
             {
               type: 'ADJUSTMENT',
@@ -61,7 +62,7 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
         });
       } else if (adjustment < 0) {
         // Decrease stock
-        await squareClient.inventory.batchCreateChanges({
+        await inventory.batchCreateChanges({
           changes: [
             {
               type: 'ADJUSTMENT',

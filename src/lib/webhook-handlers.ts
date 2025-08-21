@@ -166,7 +166,8 @@ export async function handlePaymentUpdated(event: WebhookEvent): Promise<void> {
           // This is how Square orders are properly completed
           let order = null;
           try {
-            const orderResponse = await squareClient.orders.search({
+            const orders = await squareClient.orders();
+            const orderResponse = await orders.search({
               locationIds: [process.env.SQUARE_LOCATION_ID || ''],
               query: {
                 filter: {
@@ -440,7 +441,8 @@ async function processPreorderUpdates(order: any) {
         const { default: squareClient } = await import('@/lib/square');
         const locationId = process.env.SQUARE_LOCATION_ID || '';
         if (locationId) {
-          const resp = await squareClient.orders.search({
+          const orders = await squareClient.orders();
+          const resp = await orders.search({
             locationIds: [locationId],
             query: { filter: { orderIdFilter: { orderIds: [order.id] } } }
           } as any);

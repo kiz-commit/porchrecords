@@ -156,8 +156,21 @@
       "id": "f3s3rc0b6",
       "createdAt": "2025-08-13T04:02:50.751Z",
       "updatedAt": "2025-08-13T04:02:50.751Z"
+    },
+    {
+      "name": "Test Mood",
+      "type": "mood",
+      "emoji": "🎵",
+      "color": "#FF0000",
+      "description": "Test description",
+      "order": 0,
+      "usageCount": 0,
+      "isActive": false,
+      "id": "5crqt9npz",
+      "createdAt": "2025-08-21T00:18:10.953Z",
+      "updatedAt": "2025-08-21T00:18:14.466Z"
     }
   ],
-  "lastUpdated": "2025-08-13T04:02:50.751Z",
+  "lastUpdated": "2025-08-21T00:18:14.466Z",
   "version": "1.0.0"
 }

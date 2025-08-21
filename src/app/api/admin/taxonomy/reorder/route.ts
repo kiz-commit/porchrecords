@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { reorderTaxonomyItems, type TaxonomyItem } from '@/lib/taxonomy-utils';
+import { withAdminAuth } from '@/lib/route-protection';
 
 // POST - Reorder taxonomy items within a type
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     const body = await request.json();
     
@@ -37,3 +38,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export protected handler
+export const POST = withAdminAuth(postHandler);

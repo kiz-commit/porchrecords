@@ -4,9 +4,10 @@ import {
   updateTaxonomyItem, 
   deleteTaxonomyItem 
 } from '@/lib/taxonomy-utils';
+import { withAdminAuth } from '@/lib/route-protection';
 
 // GET - Get a specific taxonomy item
-export async function GET(
+async function getHandler(
   request: NextRequest, 
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -32,7 +33,7 @@ export async function GET(
 }
 
 // PUT - Update a taxonomy item
-export async function PUT(
+async function putHandler(
   request: NextRequest, 
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -66,7 +67,7 @@ export async function PUT(
 }
 
 // DELETE - Delete (deactivate) a taxonomy item
-export async function DELETE(
+async function deleteHandler(
   request: NextRequest, 
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -94,3 +95,8 @@ export async function DELETE(
     );
   }
 }
+
+// Export protected handlers
+export const GET = withAdminAuth(getHandler);
+export const PUT = withAdminAuth(putHandler);
+export const DELETE = withAdminAuth(deleteHandler);

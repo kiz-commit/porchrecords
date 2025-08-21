@@ -23,7 +23,8 @@ export async function GET() {
 
         try {
           // Search for the item that contains this variation ID
-          const catalogResponse = await squareClient.catalog.searchItems({});
+          const catalog = await squareClient.catalog();
+          const catalogResponse = await catalog.searchItems({});
           
           if (catalogResponse && catalogResponse.items) {
             // Find the item that contains our variation
@@ -100,7 +101,8 @@ export async function POST(request: NextRequest) {
 
     // Verify product exists in Square
     try {
-      const catalogResponse = await squareClient.catalog.object.get({ objectId: productId });
+      const catalog = await squareClient.catalog();
+      const catalogResponse = await catalog.object.get({ objectId: productId });
       if (!catalogResponse || !catalogResponse.object) {
         return NextResponse.json({ 
           error: 'Product not found in Square catalog' 

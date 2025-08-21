@@ -37,7 +37,8 @@ async function getHandler() {
     // Also fetch Square catalog discounts for comparison
     let squareDiscounts: Square.CatalogObject[] = [];
     try {
-      const response = await squareClient.catalog.search({
+      const catalog = await squareClient.catalog();
+      const response = await catalog.search({
         objectTypes: ['DISCOUNT']
       });
       squareDiscounts = response.objects || [];
@@ -94,7 +95,8 @@ async function postHandler(request: NextRequest) {
         };
       }
 
-      const squareResponse = await squareClient.catalog.batchUpsert({
+      const catalog = await squareClient.catalog();
+      const squareResponse = await catalog.batchUpsert({
         batches: [
           {
             objects: [
@@ -216,7 +218,8 @@ async function putHandler(request: NextRequest) {
           };
         }
 
-        await squareClient.catalog.batchUpsert({
+        const catalog = await squareClient.catalog();
+        await catalog.batchUpsert({
           batches: [
             {
               objects: [
@@ -284,7 +287,8 @@ async function deleteHandler(request: NextRequest) {
     // Delete from Square if it exists
     if (discounts[discountIndex].squareDiscountId) {
       try {
-        await squareClient.catalog.object.delete({
+        const catalog = await squareClient.catalog();
+        await catalog.object.delete({
           objectId: discounts[discountIndex].squareDiscountId
         });
       } catch (error) {

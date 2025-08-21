@@ -142,7 +142,8 @@ async function postHandler(request: NextRequest) {
 
     let squareResponse;
     try {
-      squareResponse = await squareClient.catalog.batchUpsert(batchUpsertBody);
+              const catalog = await squareClient.catalog();
+        squareResponse = await catalog.batchUpsert(batchUpsertBody);
     } catch (error) {
       console.error('Error creating product in Square:', error);
       return NextResponse.json(

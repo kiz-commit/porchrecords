@@ -199,7 +199,8 @@ export async function POST(request: NextRequest) {
     };
 
     // Create order in Square
-    const orderResp: any = await squareClient.orders.create(orderBody);
+    const orders = await squareClient.orders();
+    const orderResp: any = await orders.create(orderBody);
     const created = orderResp?.order;
     if (!created?.id) {
       return NextResponse.json({ error: 'Failed to create order' }, { status: 502 });

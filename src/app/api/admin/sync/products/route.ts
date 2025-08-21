@@ -38,7 +38,8 @@ async function hasLocationInventory(variationId: string): Promise<{ hasInventory
       return { hasInventory: true, quantity: 0 };
     }
 
-    const inventoryResponse = await squareClient.inventory.batchGetCounts({
+    const inventory = await squareClient.inventory();
+    const inventoryResponse = await inventory.batchGetCounts({
       locationIds: [locationId],
       catalogObjectIds: [variationId],
     });
@@ -73,7 +74,8 @@ export async function POST() {
       ? { enabledLocationIds: [locationId] }
       : {};
     
-    const response = await squareClient.catalog.searchItems(searchRequest);
+    const catalog = await squareClient.catalog();
+    const response = await catalog.searchItems(searchRequest);
     
     if (!response.items) {
       console.log('⚠️  No items returned from Square API');
@@ -191,7 +193,7 @@ export async function POST() {
             
             try {
               // Fetch first image for primary image
-              const imageResponse = await squareClient.catalog.object.get({ 
+              const imageResponse = await catalog.object.get({ 
                 objectId: itemData.imageIds[0] 
               });
               if (imageResponse.object && imageResponse.object.type === 'IMAGE') {

@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
     let cursor: string | undefined = undefined;
     do {
       const searchRequest: any = locationId ? { enabledLocationIds: [locationId], cursor } : { cursor };
-      const resp = await squareClient.catalog.searchItems(searchRequest);
+      const catalog = await squareClient.catalog();
+      const resp = await catalog.searchItems(searchRequest);
       if (resp.items) {
         allItems.push(...resp.items);
       }
@@ -125,20 +126,14 @@ export async function GET(request: NextRequest) {
         const imageIds = itemData.imageIds || [];
         const imageIdsJson = JSON.stringify(imageIds);
 
-        // Fetch image URLs if we have image IDs
+        // Use image IDs directly without making individual API calls to avoid rate limiting
         let images = [];
         if (imageIds.length > 0) {
-          for (const imageId of imageIds) {
-            try {
-              const imageResponse = await squareClient.catalog.object.get({ objectId: imageId });
-              if (imageResponse.object && imageResponse.object.type === 'IMAGE') {
-                const url = (imageResponse.object as any).imageData.url;
-                images.push({ id: imageId, url });
-              }
-            } catch (error) {
-              console.error(`Error fetching image ${imageId}:`, error);
-            }
-          }
+          // Create image objects with IDs only - URLs will be constructed by the frontend
+          images = imageIds.map((imageId: string) => ({ 
+            id: imageId, 
+            url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` 
+          }));
         }
 
         const imagesJson = JSON.stringify(images);

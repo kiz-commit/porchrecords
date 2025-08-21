@@ -34,7 +34,8 @@ async function putHandler(
       }
     };
     
-    const searchResponse = await squareClient.orders.search(searchRequest);
+    const orders = await squareClient.orders();
+    const searchResponse = await orders.search(searchRequest);
     
     if (!searchResponse.orders || searchResponse.orders.length === 0) {
       return NextResponse.json(
@@ -112,7 +113,8 @@ async function putHandler(
     console.log('Sending update request to Square:', JSON.stringify(updateRequest, null, 2));
     
     try {
-      const updateResponse = await squareClient.orders.update(updateRequest);
+      const orders = await squareClient.orders();
+      const updateResponse = await orders.update(updateRequest);
       
       if (updateResponse.order) {
         console.log('Order status updated successfully:', {

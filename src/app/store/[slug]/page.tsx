@@ -1,8 +1,8 @@
 import ProductDetailPage from '@/components/ProductDetailPage';
 import { notFound } from 'next/navigation';
-import Database from 'better-sqlite3';
+import { getDatabase } from '@/lib/database';
 import { StoreProduct, ProductVariation } from '@/lib/types';
-import { SquareClient, SquareEnvironment } from 'square';
+import squareClient from '@/lib/square';
 
 interface ProductPageProps {
   params: Promise<{
@@ -15,21 +15,21 @@ export default async function ProductPage({ params }: ProductPageProps) {
   
   try {
     // First try to find by slug, then by ID as fallback
-    const db = new Database('data/porchrecords.db');
+    const db = await getDatabase();
     
     try {
       // Try to find product by slug first
-      let product: any = db.prepare(`
+      let product: any = await db.get(`
         SELECT * FROM products 
         WHERE slug = ? AND is_visible = 1
-      `).get(slug);
+      `, slug);
       
       // If not found by slug, try by ID (for backward compatibility)
       if (!product) {
-        product = db.prepare(`
+        product = await db.get(`
           SELECT * FROM products 
           WHERE id = ? AND is_visible = 1
-        `).get(slug);
+        `, slug);
       }
       
       if (!product) {
@@ -54,17 +54,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
       if (product.product_type === 'merch' && product.square_id && variations.length === 0) {
         try {
-          const squareClient = new SquareClient({
-            token: process.env.SQUARE_ACCESS_TOKEN!,
-            environment: process.env.NODE_ENV === 'production' ? SquareEnvironment.Production : SquareEnvironment.Sandbox,
-          });
-          
           // Resolve item from variation id if needed, then get all variations
-          let squareResponse = await squareClient.catalog.object.get({ objectId: product.square_id });
-          if (squareResponse.object && squareResponse.object.type === 'ITEM_VARIATION') {
-            const parentId = (squareResponse.object as any).itemVariationData?.itemId;
-            if (parentId) squareResponse = await squareClient.catalog.object.get({ objectId: parentId });
-          }
+          const catalog = await squareClient.catalog();
+          let squareResponse = await catalog.object.get({ objectId: product.square_id });
+                      if (squareResponse.object && squareResponse.object.type === 'ITEM_VARIATION') {
+              const parentId = (squareResponse.object as any).itemVariationData?.itemId;
+              if (parentId) squareResponse = await catalog.object.get({ objectId: parentId });
+            }
           
           if (squareResponse.object && squareResponse.object.type === 'ITEM' && squareResponse.object.itemData?.variations) {
             const locationId = process.env.SQUARE_LOCATION_ID;
@@ -79,7 +75,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
               
               if (locationId) {
                 try {
-                  const inventoryResponse = await squareClient.inventory.batchGetCounts({
+                  const inventory = await squareClient.inventory();
+                  const inventoryResponse = await inventory.batchGetCounts({
                     locationIds: [locationId],
                     catalogObjectIds: [variation.id],
                   });
@@ -140,10 +137,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
       const uniqueIds = Array.from(new Set(candidateIds.filter(Boolean)));
       const placeholders = uniqueIds.map(() => '?').join(',');
       const preorder = uniqueIds.length
-        ? (db.prepare(`
+        ? (await db.get(`
             SELECT is_preorder, preorder_release_date, preorder_quantity, preorder_max_quantity
             FROM preorders WHERE product_id IN (${placeholders}) LIMIT 1
-          `).get(...uniqueIds) as
+          `, ...uniqueIds) as
             | { is_preorder: number; preorder_release_date: string; preorder_quantity: number; preorder_max_quantity: number }
             | undefined)
         : undefined;
@@ -192,7 +189,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       return <ProductDetailPage product={formattedProduct} />;
       
     } finally {
-      db.close();
+      // db.close() removed as getDatabase manages connection lifecycle
     }
     
   } catch (error) {

@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
     const idToAvailable: Record<string, number> = {};
     if (catalogObjectIds.length > 0) {
       try {
-        const inv: any = await squareClient.inventory.batchGetCounts({
+        const inventory = await squareClient.inventory();
+        const inv: any = await inventory.batchGetCounts({
           locationIds: [locationId],
           catalogObjectIds
         } as any);

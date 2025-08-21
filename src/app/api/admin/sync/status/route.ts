@@ -15,7 +15,8 @@ export async function GET() {
         ? { enabledLocationIds: [locationId] }
         : {};
       
-      const response = await squareClient.catalog.searchItems(searchRequest);
+      const catalog = await squareClient.catalog();
+      const response = await catalog.searchItems(searchRequest);
       squareProductCount = response.items?.length || 0;
     } catch (error) {
       console.error('Error fetching Square products:', error);

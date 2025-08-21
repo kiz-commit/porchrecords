@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
 
     // Optionally ensure order exists
     try {
-      await squareClient.orders.search({
+      const orders = await squareClient.orders();
+      await orders.search({
         locationIds: [locationId],
         query: { filter: { orderIdFilter: { orderIds: [orderId] } } }
       } as any);
@@ -84,7 +85,8 @@ export async function POST(request: NextRequest) {
     // Fetch order to inspect line items for inventory finalization and preorder updates
     let order: any = null;
     try {
-      const ord = await squareClient.orders.search({
+      const ordersApi = await squareClient.orders();
+      const ord = await ordersApi.search({
         locationIds: [locationId],
         query: { filter: { orderIdFilter: { orderIds: [orderId] } } }
       } as any);
@@ -114,7 +116,8 @@ export async function POST(request: NextRequest) {
       }
       if (changes.length) {
         try {
-          await squareClient.inventory.batchCreateChanges({ idempotencyKey: `finalize-${orderId}-${Date.now()}`, changes } as any);
+          const inventory = await squareClient.inventory();
+          await inventory.batchCreateChanges({ idempotencyKey: `finalize-${orderId}-${Date.now()}`, changes } as any);
         } catch (e) {
           console.warn('Inventory finalize failed:', e);
         }

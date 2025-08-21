@@ -12,7 +12,8 @@ export async function GET() {
       ? { enabledLocationIds: [locationId] }
       : {};
     
-    const response = await squareClient.catalog.searchItems(searchRequest);
+    const catalog = await squareClient.catalog();
+    const response = await catalog.searchItems(searchRequest);
     
     if (!response.items) {
       return NextResponse.json({

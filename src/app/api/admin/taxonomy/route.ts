@@ -5,9 +5,10 @@ import {
   addTaxonomyItem, 
   type TaxonomyItem 
 } from '@/lib/taxonomy-utils';
+import { withAdminAuth } from '@/lib/route-protection';
 
 // GET - List all taxonomy items or filter by type
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') as TaxonomyItem['type'] | null;
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Add a new taxonomy item
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     const body = await request.json();
     
@@ -100,3 +101,7 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT handler removed; legacy migration no longer supported
+
+// Export protected handlers
+export const GET = withAdminAuth(getHandler);
+export const POST = withAdminAuth(postHandler);

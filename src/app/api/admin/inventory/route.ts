@@ -25,7 +25,8 @@ async function hasLocationInventory(variationId: string): Promise<boolean> {
     }
 
     // Check if this variation has inventory at the configured location
-    const inventoryResponse = await squareClient.inventory.batchGetCounts({
+    const inventory = await squareClient.inventory();
+    const inventoryResponse = await inventory.batchGetCounts({
       locationIds: [locationId],
       catalogObjectIds: [variationId],
     });
@@ -130,7 +131,8 @@ async function getHandler() {
         const searchRequest: any = locationId
           ? { enabledLocationIds: [locationId], cursor }
           : { cursor };
-        const resp = await squareClient.catalog.searchItems(searchRequest);
+        const catalog = await squareClient.catalog();
+        const resp = await catalog.searchItems(searchRequest);
         if (resp.items) {
           allItems.push(...resp.items);
         }
@@ -186,7 +188,8 @@ async function getHandler() {
           if (imageIds.length > 0) {
             images = await Promise.all(imageIds.map(async (imageId: string) => {
               try {
-                const imageResponse = await squareClient.catalog.object.get({ objectId: imageId });
+                const catalog = await squareClient.catalog();
+                const imageResponse = await catalog.object.get({ objectId: imageId });
                 if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
                   return { id: imageId, url: imageResponse.object.imageData.url || `/store.webp` };
                 } else {
@@ -208,7 +211,8 @@ async function getHandler() {
             const locationId = process.env.SQUARE_LOCATION_ID;
             if (locationId) {
               // Use Square's batchGetCounts method to get inventory counts
-              const inventoryResponse = await squareClient.inventory.batchGetCounts({
+              const inventory = await squareClient.inventory();
+              const inventoryResponse = await inventory.batchGetCounts({
                 locationIds: [locationId],
                 catalogObjectIds: [variation.id],
               });

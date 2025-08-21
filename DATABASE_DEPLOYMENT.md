@@ -79,6 +79,9 @@ If you have existing JSON data:
 # Run migration script
 npm run migrate-db
 
+# Initialize default site configuration
+npm run init-site-config
+
 # Verify migration
 # Check migration-report.json for details
 ```
@@ -232,6 +235,7 @@ For database-related issues:
 ## Migration Checklist
 
 - [ ] Run migration script: `npm run migrate-db`
+- [ ] Initialize site configuration: `npm run init-site-config`
 - [ ] Verify all pages load correctly
 - [ ] Test page creation and editing
 - [ ] Check media upload functionality

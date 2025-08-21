@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
 
     // Optionally fetch order to verify existence
     try {
-      await squareClient.orders.search({
+      const orders = await squareClient.orders();
+      await orders.search({
         locationIds: [locationId],
         query: { filter: { orderIdFilter: { orderIds: [orderId] } } }
       } as any);
