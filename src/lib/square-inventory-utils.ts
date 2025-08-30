@@ -148,11 +148,9 @@ export async function fetchProductsWithLocationInventory(): Promise<Square.Catal
       return [];
     }
 
-    // Filter to only products with inventory > 0
-    const productsWithInventory = inventoryResponse.data.filter((item: any) => {
-      const quantity = Number(item.quantity) || 0;
-      return quantity > 0;
-    });
+    // Include all products that have inventory records at the location (including out of stock)
+    // This matches what Square's inventory management shows
+    const productsWithInventory = inventoryResponse.data;
 
     console.log(`📍 Found ${productsWithInventory.length} products with inventory at location`);
 

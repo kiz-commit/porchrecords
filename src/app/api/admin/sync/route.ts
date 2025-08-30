@@ -48,19 +48,27 @@ const syncProductChunk = async (products: any[], startIndex: number, chunkSize: 
       const adminFields = getAdminFields(productData.squareId);
       
       // Update product inventory (preserves admin fields)
-      // Since we already filtered by location inventory, we can assume it has inventory
-      const success = updateProductInventory(productData.squareId, {
-        stockQuantity: 1, // Default to 1 since we know it has inventory
-        stockStatus: 'in_stock',
-        availableAtLocation: true
-      });
+      // We need to check the actual inventory quantity for this product
+      const inventoryData = await batchCheckLocationInventory([productData.squareId]);
+      const productInventory = inventoryData.get(productData.squareId);
+      
+      if (productInventory) {
+        const success = updateProductInventory(productData.squareId, {
+          stockQuantity: productInventory.quantity,
+          stockStatus: productInventory.stockStatus,
+          availableAtLocation: productInventory.hasInventory
+        });
 
-      if (success) {
-        console.log(`   ✅ Synced ${productData.title}: 1 unit (in_stock)`);
-        syncedCount++;
+        if (success) {
+          console.log(`   ✅ Synced ${productData.title}: ${productInventory.quantity} units (${productInventory.stockStatus})`);
+          syncedCount++;
+        } else {
+          console.log(`   ⚠️  Failed to update ${productData.title}`);
+          errorCount++;
+        }
       } else {
-        console.log(`   ⚠️  Failed to update ${productData.title}`);
-        errorCount++;
+        console.log(`   ❌ Skipping ${productData.title}: No inventory data found`);
+        skippedCount++;
       }
 
     } catch (error) {
