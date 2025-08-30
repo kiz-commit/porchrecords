@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAllSquareProducts, hasLocationInventory, processSquareItem } from '@/lib/square-inventory-utils';
+import { fetchAllSquareProducts, batchCheckLocationInventory, processSquareItem } from '@/lib/square-inventory-utils';
 import { getAdminFields, updateProductInventory, resetLocationAvailability } from '@/lib/product-database-utils';
 import { invalidateProductsCache } from '@/lib/cache-utils';
 import Database from 'better-sqlite3';
@@ -63,11 +63,13 @@ export async function POST(request: NextRequest) {
 
         log.push(`✅ Fetched ${squareItems.length} items from Square`);
 
-        // Step 3: Process each item with location filtering
+        // Step 3: Process items and collect variation IDs for batch inventory check
+        const validProducts: any[] = [];
+        const variationIds: string[] = [];
         let syncedCount = 0;
         let skippedCount = 0;
         let errorCount = 0;
-
+        
         for (const item of squareItems) {
           try {
             // Process the Square item
@@ -76,11 +78,26 @@ export async function POST(request: NextRequest) {
               skippedCount++;
               continue;
             }
-
-            // Check if product has inventory at configured location
-            const inventoryData = await hasLocationInventory(productData.squareId);
             
-            if (!inventoryData.hasInventory) {
+            validProducts.push(productData);
+            variationIds.push(productData.squareId);
+          } catch (error) {
+            console.error(`   ❌ Error processing item:`, error);
+            errorCount++;
+          }
+        }
+        
+        console.log(`📦 Processing ${validProducts.length} valid products...`);
+        
+        // Step 4: Batch check inventory for all products
+        const inventoryResults = await batchCheckLocationInventory(variationIds);
+        
+        // Step 5: Update products with inventory data
+        for (const productData of validProducts) {
+          try {
+            const inventoryData = inventoryResults.get(productData.squareId);
+            
+            if (!inventoryData || !inventoryData.hasInventory) {
               console.log(`   ❌ Skipping ${productData.title}: No inventory at location`);
               skippedCount++;
               continue;
@@ -105,7 +122,7 @@ export async function POST(request: NextRequest) {
             }
 
           } catch (error) {
-            console.error(`   ❌ Error processing item:`, error);
+            console.error(`   ❌ Error updating product:`, error);
             errorCount++;
           }
         }

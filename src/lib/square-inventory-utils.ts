@@ -2,41 +2,95 @@ import squareClient from '@/lib/square';
 import { Square } from 'square';
 
 /**
- * Check if a product has inventory at the configured location
+ * Check inventory for multiple products at once (batched to avoid rate limits)
+ */
+export async function batchCheckLocationInventory(variationIds: string[]): Promise<Map<string, {
+  hasInventory: boolean;
+  quantity: number;
+  stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
+}>> {
+  const results = new Map();
+  
+  try {
+    const locationId = process.env.SQUARE_LOCATION_ID;
+    if (!locationId) {
+      console.log('   ⚠️  No SQUARE_LOCATION_ID configured - defaulting to include all products');
+      variationIds.forEach(id => {
+        results.set(id, { hasInventory: true, quantity: 0, stockStatus: 'in_stock' });
+      });
+      return results;
+    }
+
+    // Process in batches of 10 to avoid rate limits
+    const batchSize = 10;
+    for (let i = 0; i < variationIds.length; i += batchSize) {
+      const batch = variationIds.slice(i, i + batchSize);
+      
+      try {
+        const inventory = await squareClient.inventory();
+        const inventoryResponse = await inventory.batchGetCounts({
+          locationIds: [locationId],
+          catalogObjectIds: batch,
+        });
+        
+        if (inventoryResponse && inventoryResponse.data) {
+          inventoryResponse.data.forEach((item: any) => {
+            const variationId = item.catalogObjectId;
+            const quantity = Number(item.quantity) || 0;
+            const stockStatus = quantity === 0 ? 'out_of_stock' : 
+                               quantity < 3 ? 'low_stock' : 'in_stock';
+            
+            results.set(variationId, { hasInventory: true, quantity, stockStatus });
+          });
+        }
+        
+        // Add missing items as not available
+        batch.forEach(id => {
+          if (!results.has(id)) {
+            results.set(id, { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' });
+          }
+        });
+        
+        console.log(`   📍 Batch ${Math.floor(i / batchSize) + 1}: Checked ${batch.length} products`);
+        
+        // Add delay between batches to avoid rate limits
+        if (i + batchSize < variationIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error checking batch inventory:`, error);
+        // Mark all items in this batch as not available on error
+        batch.forEach(id => {
+          results.set(id, { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' });
+        });
+        
+        // Wait longer on error before continuing
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+      }
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('❌ Error in batch inventory check:', error);
+    // Return all as not available on error
+    variationIds.forEach(id => {
+      results.set(id, { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' });
+    });
+    return results;
+  }
+}
+
+/**
+ * Check if a product has inventory at the configured location (single product - for backward compatibility)
  */
 export async function hasLocationInventory(variationId: string): Promise<{
   hasInventory: boolean;
   quantity: number;
   stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
 }> {
-  try {
-    const locationId = process.env.SQUARE_LOCATION_ID;
-    if (!locationId) {
-      console.log('   ⚠️  No SQUARE_LOCATION_ID configured - defaulting to include product');
-      return { hasInventory: true, quantity: 0, stockStatus: 'in_stock' };
-    }
-
-    const inventory = await squareClient.inventory();
-    const inventoryResponse = await inventory.batchGetCounts({
-      locationIds: [locationId],
-      catalogObjectIds: [variationId],
-    });
-    
-    if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
-      const quantity = Number(inventoryResponse.data[0].quantity) || 0;
-      const stockStatus = quantity === 0 ? 'out_of_stock' : 
-                         quantity < 3 ? 'low_stock' : 'in_stock';
-      
-      console.log(`   📍 Location inventory check for ${variationId}: ${quantity} units (${stockStatus})`);
-      return { hasInventory: true, quantity, stockStatus };
-    }
-    
-    console.log(`   📍 No inventory record found for ${variationId} at location ${locationId}`);
-    return { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' };
-  } catch (error) {
-    console.error('❌ Error checking location inventory:', error);
-    return { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' };
-  }
+  const results = await batchCheckLocationInventory([variationId]);
+  return results.get(variationId) || { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' };
 }
 
 /**
