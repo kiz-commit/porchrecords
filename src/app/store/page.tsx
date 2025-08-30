@@ -1,5 +1,5 @@
 import StoreClientPage from '@/components/StoreClientPage';
-import { getTaxonomyByType } from '@/lib/taxonomy-utils';
+import { getTaxonomyByType } from '@/lib/taxonomy-db';
 import { getDatabase } from '@/lib/database';
 
 // Force dynamic rendering to avoid static generation issues with database
@@ -31,30 +31,20 @@ export default async function Store() {
   let allGenres: string[] = [];
   let allMerchCategories: string[] = [];
   let allMoods: string[] = [];
+  let allProductTypes: string[] = [];
 
   try {
     const db = await getDatabase();
     
-    // Get genres from database
-    const genres = await db.all(`
-      SELECT DISTINCT genre 
-      FROM products 
-      WHERE genre IS NOT NULL AND genre != '' AND is_visible = 1
-      ORDER BY genre
-    `) as any[];
-    allGenres = genres.map(g => g.genre);
+    // Load all taxonomy data from unified system
+    const [taxonomyMoods, taxonomyGenres, taxonomyProductTypes, taxonomyMerchCategories] = await Promise.all([
+      getTaxonomyByType('mood'),
+      getTaxonomyByType('genre'),
+      getTaxonomyByType('product_type'),
+      getTaxonomyByType('merch_category')
+    ]);
 
-    // Get merch categories from database
-    const merchCategories = await db.all(`
-      SELECT DISTINCT merch_category 
-      FROM products 
-      WHERE merch_category IS NOT NULL AND merch_category != '' AND is_visible = 1
-      ORDER BY merch_category
-    `) as any[];
-    allMerchCategories = merchCategories.map(mc => mc.merch_category);
-
-    // Try to load moods from new taxonomy system first
-    const taxonomyMoods = getTaxonomyByType('mood');
+    // Use taxonomy data if available, otherwise fallback to database
     if (taxonomyMoods.length > 0) {
       allMoods = taxonomyMoods.map(mood => mood.name);
     } else {
@@ -67,12 +57,42 @@ export default async function Store() {
       `) as any[];
       allMoods = moods.map(m => m.mood);
     }
+
+    if (taxonomyGenres.length > 0) {
+      allGenres = taxonomyGenres.map(genre => genre.name);
+    } else {
+      // Fallback to database if taxonomy system is empty
+      const genres = await db.all(`
+        SELECT DISTINCT genre 
+        FROM products 
+        WHERE genre IS NOT NULL AND genre != '' AND is_visible = 1
+        ORDER BY genre
+      `) as any[];
+      allGenres = genres.map(g => g.genre);
+    }
+
+    if (taxonomyMerchCategories.length > 0) {
+      allMerchCategories = taxonomyMerchCategories.map(category => category.name);
+    } else {
+      // Fallback to database if taxonomy system is empty
+      const merchCategories = await db.all(`
+        SELECT DISTINCT merch_category 
+        FROM products 
+        WHERE merch_category IS NOT NULL AND merch_category != '' AND is_visible = 1
+        ORDER BY merch_category
+      `) as any[];
+      allMerchCategories = merchCategories.map(mc => mc.merch_category);
+    }
+
+    // Extract product types from taxonomy
+    allProductTypes = taxonomyProductTypes.map(pt => pt.name);
   } catch (error) {
     console.error('Error loading categories from database:', error);
     // Fallback to empty arrays
     allGenres = [];
     allMerchCategories = [];
     allMoods = [];
+    allProductTypes = [];
   }
 
   return <StoreClientPage 
@@ -80,5 +100,6 @@ export default async function Store() {
     allGenres={allGenres}
     allMerchCategories={allMerchCategories}
     allMoods={allMoods}
+    allProductTypes={allProductTypes}
   />;
 } 

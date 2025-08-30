@@ -6,20 +6,24 @@ import { withAdminAuth } from '@/lib/route-protection';
 import { invalidateProductsCache } from '@/lib/cache-utils';
 import Database from 'better-sqlite3';
 
+
+
 // GET - Fetch all products from database (protected with admin auth)
 async function getHandler(request: NextRequest) {
-  const db = new Database('data/porchrecords.db');
+  const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
+  const db = new Database(DB_PATH);
   
   try {
-    // Get all products from database
+    // Get all products from database that are available at the configured location
     const query = `
       SELECT 
         id, title, artist, price, description, image, images, image_ids,
         genre, in_stock, is_preorder, is_visible, preorder_release_date,
         preorder_quantity, preorder_max_quantity, product_type, merch_category,
         size, color, mood, stock_quantity, stock_status, is_variable_pricing,
-        min_price, max_price, created_at, slug, square_id, is_from_square
+        min_price, max_price, created_at, slug, square_id, is_from_square, available_at_location
       FROM products 
+      WHERE is_from_square = 1 AND square_id IS NOT NULL AND available_at_location = 1
       ORDER BY title ASC
     `;
 
@@ -153,7 +157,8 @@ async function postHandler(request: NextRequest) {
     }
 
     // Also create the product in our database
-    const db = new Database('data/porchrecords.db');
+    const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
+    const db = new Database(DB_PATH);
     try {
       const now = new Date().toISOString();
       const createdItem = squareResponse.objects?.find((obj: Square.CatalogObject) => obj.type === 'ITEM');

@@ -171,6 +171,25 @@ export async function initializeDatabase(): Promise<void> {
     )
   `);
 
+  // Create taxonomy table for unified taxonomy management
+  await database.exec(`
+    CREATE TABLE IF NOT EXISTS taxonomy (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('genre', 'mood', 'tag', 'product_type', 'merch_category')),
+      emoji TEXT,
+      color TEXT,
+      description TEXT,
+      parent_id TEXT,
+      order_index INTEGER DEFAULT 0,
+      usage_count INTEGER DEFAULT 0,
+      is_active BOOLEAN DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(name, type)
+    )
+  `);
+
   // Create preorders table
   await database.exec(`
     CREATE TABLE IF NOT EXISTS preorders (
@@ -278,6 +297,10 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_admin_security_session ON admin_security(session_token);
     CREATE INDEX IF NOT EXISTS idx_admin_audit_username ON admin_audit_log(username);
     CREATE INDEX IF NOT EXISTS idx_admin_audit_timestamp ON admin_audit_log(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_taxonomy_type ON taxonomy(type);
+    CREATE INDEX IF NOT EXISTS idx_taxonomy_active ON taxonomy(is_active);
+    CREATE INDEX IF NOT EXISTS idx_taxonomy_order ON taxonomy(order_index);
+    CREATE INDEX IF NOT EXISTS idx_taxonomy_parent ON taxonomy(parent_id);
     CREATE INDEX IF NOT EXISTS idx_admin_audit_action ON admin_audit_log(action);
   `);
 

@@ -112,93 +112,231 @@ export async function POST(request: NextRequest) {
       log.push('Pulling products from Square...');
       
       try {
-        const catalog = await squareClient.catalog();
-        const response = await catalog.searchItems({});
-        // Safely stringify BigInt values for logging
-        function replacer(key: string, value: any) {
-          return typeof value === 'bigint' ? value.toString() : value;
-        }
-        console.log('Square API response:', JSON.stringify(response, replacer, 2));
+        // Use the working sync logic from products endpoint
+        const db = new Database(DB_PATH);
         
-        const existingProducts = readProductsFromDatabase();
-        let newProducts = 0;
-        let updatedProducts = 0;
-        let removedProducts = 0;
-
-        if (response.items) {
-          const squareProducts = response.items.map((item: any) => {
-            if (item.type !== 'ITEM' || !item.itemData?.variations?.length) {
-              return null;
-            }
-            const variation = item.itemData.variations[0];
-            if (variation.type !== 'ITEM_VARIATION' || !variation.id) {
-              return null;
-            }
-            if (!variation.itemVariationData?.priceMoney) {
-              return null;
-            }
-
-            const price = Number(variation.itemVariationData.priceMoney.amount) / 100;
-            const image = item.itemData?.imageIds?.[0] 
-              ? `https://square-catalog-production.s3.amazonaws.com/files/${item.itemData.imageIds[0]}` 
-              : "/hero-image.jpg";
-
-            return {
-              id: variation.id,
-              title: item.itemData.name || 'No title',
-              price: price,
-              description: item.itemData.description ?? '',
-              image: image,
-              inStock: true,
-              artist: 'Unknown Artist',
-              genre: 'Uncategorized',
-              curationTags: [],
-              isPreorder: false,
-              squareId: item.id,
-              isFromSquare: true,
-              updatedAt: now,
-            };
-          }).filter(Boolean);
-
-          // Get current Square product IDs
-          const currentSquareIds = squareProducts.map((p: any) => p.squareId);
-          
-          // Remove products that no longer exist in Square
-          const db = getDatabase();
-          try {
-            const productsToRemove = existingProducts.filter((p: any) => 
-              p.square_id && !currentSquareIds.includes(p.square_id)
-            );
-            
-            for (const product of productsToRemove) {
-              const productData = product as { square_id: string; title: string };
-              db.prepare('DELETE FROM products WHERE square_id = ?').run(productData.square_id);
-              removedProducts++;
-              log.push(`Removed: ${productData.title} (no longer in Square)`);
-            }
-          } finally {
-            db.close();
+        // Ensure available_at_location column exists
+        try {
+          db.exec('ALTER TABLE products ADD COLUMN available_at_location BOOLEAN DEFAULT 1;');
+          console.log('✅ Added available_at_location column');
+        } catch (error: any) {
+          if (!error.message.includes('duplicate column name')) {
+            console.error('❌ Error adding column:', error);
           }
-
-          // Process each current product
-          squareProducts.forEach((squareProduct: any) => {
-            const existingProduct = existingProducts.find((p: any) => p.square_id === squareProduct.squareId);
-            
-            if (!existingProduct) {
-              // New product
-              writeProductToDatabase(squareProduct);
-              newProducts++;
-              log.push(`Added: ${squareProduct.title}`);
-            } else {
-              // Update existing product
-              writeProductToDatabase(squareProduct);
-              updatedProducts++;
-              log.push(`Updated: ${squareProduct.title}`);
-            }
-          });
-          
-          log.push(`Pull complete: ${newProducts} new, ${updatedProducts} updated, ${removedProducts} removed`);
         }
+        // First, set all existing products to available_at_location = 0 (not available)
+        // Then we'll update only the ones that have inventory to 1
+        console.log('🔄 Resetting all products to available_at_location = 0');
+        db.prepare('UPDATE products SET available_at_location = 0 WHERE is_from_square = 1').run();
+        
+        let syncedCount = 0;
+
+        // Fetch all products and filter by inventory at our location
+        const locationId = process.env.SQUARE_LOCATION_ID;
+        const searchRequest = {}; // Get all products, we'll filter by inventory
+        
+        console.log(`🏪 Will filter by inventory at location: ${locationId}`);
+        
+        const catalog = await squareClient.catalog();
+        
+        // Handle pagination to get ALL items
+        let allItems: any[] = [];
+        let cursor: string | undefined = undefined;
+        let pageCount = 0;
+        
+        do {
+          const paginatedRequest = {
+            ...searchRequest,
+            cursor,
+            limit: 100 // Square API maximum is 100 items per page
+          };
+          
+          const response = await catalog.searchItems(paginatedRequest);
+          pageCount++;
+          
+          if (response.items) {
+            allItems.push(...response.items);
+            log.push(`📄 Page ${pageCount}: Fetched ${response.items.length} items`);
+          }
+          
+          cursor = response.cursor;
+        } while (cursor);
+        
+        if (allItems.length === 0) {
+          log.push('⚠️ No items returned from Square API');
+        } else {
+          log.push(`✅ Total fetched: ${allItems.length} items from Square (${pageCount} pages)`);
+
+          // Prepare SQL statements for better performance
+          const insertOrUpdateProduct = db.prepare(`
+            INSERT OR REPLACE INTO products (
+              id, title, price, description, image, in_stock, artist, genre, curation_tags,
+              is_preorder, square_id, is_from_square, updated_at, is_visible,
+              stock_quantity, stock_status, product_type, merch_category,
+              size, color, mood, format, year, label, image_ids, images,
+              preorder_release_date, preorder_quantity, preorder_max_quantity,
+              is_variable_pricing, min_price, max_price, created_at,
+              last_synced_at, square_updated_at, slug, has_variations,
+              variation_count, last_variation_sync, variations, available_at_location
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+
+          // Process items
+          for (const item of allItems) {
+            try {
+              if (item.type !== 'ITEM' || !(item as any).itemData?.variations?.length) {
+                console.log(`⏭️  Skipping item: type=${item.type}, variations=${(item as any).itemData?.variations?.length}`);
+                continue;
+              }
+
+              const itemData = (item as any).itemData;
+
+              for (const variation of itemData.variations) {
+                if (variation.type !== 'ITEM_VARIATION' || !variation.id) {
+                  console.log(`⏭️  Skipping variation: type=${variation.type}, id=${variation.id}`);
+                  continue;
+                }
+                // Extract price - be more lenient for sandbox data
+                let price = 0;
+                if (variation.itemVariationData?.priceMoney?.amount) {
+                  price = Number(variation.itemVariationData.priceMoney.amount) / 100;
+                } else {
+                  // For sandbox items without explicit pricing, use default
+                  price = 19.99;
+                  console.log(`💰 Using default price $${price} for ${itemData.name} (sandbox mode)`);
+                }
+                const productId = `square_${variation.id}`;
+                
+                // Get image URL
+                const imageUrl = itemData?.imageIds?.[0] 
+                  ? `https://square-catalog-production.s3.amazonaws.com/files/${itemData.imageIds[0]}`
+                  : '/store.webp';
+
+                // Process description and check for hidden/preorder tags
+                const description = itemData?.description || '';
+                const isHidden = description.includes('[HIDDEN FROM STORE]');
+                const isPreorder = description.includes('[PREORDER]');
+                const cleanDescription = description.replace(/\[HIDDEN FROM STORE\]|\[PREORDER\]/g, '').trim();
+
+                // Determine product type from title
+                let productType = 'record';
+                const title = itemData.name || 'No title';
+                if (title.toLowerCase().includes('tote') || title.toLowerCase().includes('shirt') || title.toLowerCase().includes('hoodie')) {
+                  productType = 'merch';
+                }
+
+                // Create arrays for images
+                const imageIds = itemData?.imageIds || [];
+                const images = imageIds.map((id: string) => ({
+                  id,
+                  url: `https://square-catalog-production.s3.amazonaws.com/files/${id}`
+                }));
+
+                // Fetch real inventory from Square and determine location availability
+                let stockQuantity = 0;
+                let stockStatus = 'out_of_stock';
+                let availableAtLocation = false; // Only true if product has inventory at our location
+                
+                try {
+                  const locationId = process.env.SQUARE_LOCATION_ID;
+                  if (locationId) {
+                    const inventory = await squareClient.inventory();
+                    const inventoryResponse = await inventory.batchGetCounts({
+                      locationIds: [locationId],
+                      catalogObjectIds: [variation.id],
+                    });
+                    
+                    if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
+                      stockQuantity = Number(inventoryResponse.data[0].quantity) || 0;
+                      availableAtLocation = true; // Has inventory record at our location
+                      console.log(`🏪 ${title}: Found at location ${locationId}, qty=${stockQuantity}`);
+                    } else {
+                      console.log(`❌ ${title}: No inventory at location ${locationId}`);
+                    }
+                  } else {
+                    // If no location configured, assume available everywhere
+                    availableAtLocation = true;
+                    console.log(`⚠️ ${title}: No location configured, assuming available`);
+                  }
+                } catch (error) {
+                  console.error(`Error fetching inventory for ${variation.id}:`, error);
+                  stockQuantity = 0;
+                  availableAtLocation = false;
+                }
+
+                // Determine stock status based on quantity
+                if (stockQuantity === 0) {
+                  stockStatus = 'out_of_stock';
+                } else if (stockQuantity < 3) {
+                  stockStatus = 'low_stock';
+                } else {
+                  stockStatus = 'in_stock';
+                }
+
+                // Insert or update the product
+                try {
+                  console.log(`💾 About to save ${title} with available_at_location = ${availableAtLocation ? 1 : 0}`);
+                  insertOrUpdateProduct.run(
+                    productId,                                    // id
+                    title,                                        // title
+                    price,                                        // price
+                    cleanDescription,                             // description
+                    imageUrl,                                     // image
+                    stockQuantity > 0 ? 1 : 0,                  // in_stock
+                    'Unknown Artist',                             // artist
+                    'Uncategorized',                             // genre
+                    '',                                          // curation_tags
+                    isPreorder ? 1 : 0,                         // is_preorder
+                    variation.id,                                 // square_id
+                    1,                                           // is_from_square
+                    now,                                         // updated_at
+                    isHidden ? 0 : 1,                           // is_visible
+                    stockQuantity,                               // stock_quantity (real from Square)
+                    stockStatus,                                 // stock_status (calculated from real inventory)
+                    productType,                                 // product_type
+                    '',                                          // merch_category
+                    '',                                          // size
+                    '',                                          // color
+                    '',                                          // mood
+                    '',                                          // format
+                    '',                                          // year
+                    '',                                          // label
+                    JSON.stringify(imageIds),                    // image_ids
+                    JSON.stringify(images),                      // images
+                    '',                                          // preorder_release_date
+                    0,                                           // preorder_quantity
+                    0,                                           // preorder_max_quantity
+                    0,                                           // is_variable_pricing
+                    null,                                        // min_price
+                    null,                                        // max_price
+                    now,                                         // created_at
+                    now,                                         // last_synced_at
+                    now,                                         // square_updated_at
+                    null,                                        // slug (will be auto-generated)
+                    0,                                           // has_variations
+                    0,                                           // variation_count
+                    null,                                        // last_variation_sync
+                    null,                                        // variations
+                    availableAtLocation ? 1 : 0                  // available_at_location
+                  );
+
+                  syncedCount++;
+                  log.push(`Updated: ${title}`);
+                  console.log(`✅ Successfully synced: ${title} (${productId})`);
+                } catch (insertError) {
+                  console.error(`❌ Failed to insert ${title}:`, insertError);
+                  log.push(`❌ Failed to sync: ${title} - ${insertError}`);
+                }
+              }
+            } catch (error) {
+              console.error('Error processing item:', error);
+            }
+          }
+          
+          log.push(`Pull complete: ${syncedCount} products synced to database`);
+        }
+        
+        db.close();
       } catch (error) {
         log.push(`Error pulling from Square: ${error}`);
         console.error('Error pulling from Square:', error);

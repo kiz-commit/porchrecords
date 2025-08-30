@@ -45,91 +45,179 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     
     // First, try to get product from local database
-    const db = new Database('data/porchrecords.db');
+    const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
+    const db = new Database(DB_PATH);
     let localProduct: any = null;
     
     try {
+      console.log('🔍 Looking for product in database with ID:', id);
+      console.log('🔍 Trying lookup with:', [id, id, `square_${id}`, `square_${id}`]);
+      // Try multiple ways to find the product
       localProduct = db.prepare(`
         SELECT * FROM products 
-        WHERE id = ? OR square_id = ?
-      `).get(id, id);
+        WHERE id = ? OR square_id = ? OR id = ? OR square_id = ?
+      `).get(id, id, `square_${id}`, `square_${id}`);
+      console.log('🔍 Database lookup result:', localProduct ? 'Found' : 'Not found');
+      if (localProduct) {
+        console.log('🔍 Found product:', {
+          id: localProduct.id,
+          square_id: localProduct.square_id,
+          genre: localProduct.genre,
+          mood: localProduct.mood
+        });
+      } else {
+        console.log('🔍 No product found in database');
+      }
+    } catch (error) {
+      console.error('🔍 Database lookup error:', error);
     } finally {
       db.close();
     }
     
-    // Fetch the product from Square as fallback
-    const catalog = await squareClient.catalog();
-    const response = await catalog.searchItems({});
-    if (!response.items) {
-      return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
-    }
-    
-    const product = response.items.find((item: Square.CatalogObject) => {
-      if (item.type !== 'ITEM' || !item.itemData?.variations?.length) {
-        return false;
-      }
-      const variation = item.itemData.variations[0];
-      return variation.id === id;
-    });
-    
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-    
-    // Type cast to ensure TypeScript knows this is an ITEM
-    const item = product as Square.CatalogObject & { type: 'ITEM'; itemData: Square.CatalogItem };
-    const variation = item.itemData.variations![0] as Square.CatalogObject & { type: 'ITEM_VARIATION'; itemVariationData: Square.CatalogItemVariation };
-    const price = Number(variation.itemVariationData.priceMoney!.amount) / 100;
-    
-    // Parse visibility and preorder status from description
-    const description = item.itemData.description || '';
-    const isHidden = description.includes('[HIDDEN FROM STORE]');
-    const isPreorder = description.includes('[PREORDER]');
-    
-    // Fetch images from Square
-    const imageIds = item.itemData.imageIds || [];
+    // Only fetch from Square if we don't have local data or if we need fresh data
+    let product: Square.CatalogObject | null = null;
+    let item: any = null;
+    let variation: any = null;
+    let price = 0;
+    let description = '';
+    let isHidden = false;
+    let isPreorder = false;
+    let imageIds: string[] = [];
     let images: { id: string; url: string }[] = [];
     let image = '/store.webp';
+    let stockQuantity = 0;
+    let stockStatus = 'out_of_stock';
 
-    if (imageIds.length > 0) {
-      images = await Promise.all(imageIds.map(async (imageId: string) => {
-        try {
-          const imageResponse = await catalog.object.get({ objectId: imageId });
-          if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
-            return { id: imageId, url: imageResponse.object.imageData.url || `/store.webp` };
-          } else {
-            return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
+    // If we have local product data, try to use it first
+    if (localProduct) {
+      try {
+        // Use cached data from local database
+        price = localProduct.price || 0;
+        description = localProduct.description || '';
+        isHidden = !localProduct.is_visible;
+        isPreorder = Boolean(localProduct.is_preorder);
+        imageIds = localProduct.image_ids ? JSON.parse(localProduct.image_ids) : [];
+        
+        // Try to construct images from cached data
+        if (imageIds.length > 0) {
+          images = imageIds.map((imageId: string) => ({
+            id: imageId,
+            url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}`
+          }));
+          if (images.length > 0) {
+            image = images[0].url;
           }
-        } catch (error) {
-          console.error('Error fetching image from Square:', error);
-          return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
         }
-      }));
-      if (images.length > 0) {
-        image = images[0].url;
+        
+        stockQuantity = localProduct.stock_quantity || 0;
+        stockStatus = getStockStatus(stockQuantity);
+        
+        console.log('✅ Using cached product data to reduce Square API calls');
+      } catch (error) {
+        console.error('Error using cached data:', error);
       }
     }
+
+    // Only fetch from Square if we don't have cached data or if it's stale
+    // Use local data if available and recent (within 5 minutes)
+    const shouldFetchFromSquare = !localProduct || !localProduct.last_synced_at || 
+        (new Date().getTime() - new Date(localProduct.last_synced_at).getTime()) > 300000; // 5 minutes
     
-    // Fetch inventory count
-    let stockQuantity = 0;
-    try {
-      const locationId = process.env.SQUARE_LOCATION_ID;
-      if (locationId) {
-        const inventory = await squareClient.inventory();
-        const inventoryResponse = await inventory.batchGetCounts({
-          locationIds: [locationId],
-          catalogObjectIds: [variation.id],
+    if (shouldFetchFromSquare) {
+      try {
+        console.log('🔄 Fetching fresh data from Square API');
+        const catalog = await squareClient.catalog();
+        const response = await catalog.searchItems({});
+        if (!response.items) {
+          return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+        }
+        
+        const foundProduct = response.items.find((item: Square.CatalogObject) => {
+          if (item.type !== 'ITEM' || !item.itemData?.variations?.length) {
+            return false;
+          }
+          const variation = item.itemData.variations[0];
+          return variation.id === id;
         });
         
-        if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
-          stockQuantity = Number(inventoryResponse.data[0].quantity) || 0;
+        if (foundProduct) {
+          product = foundProduct;
+        }
+        
+        if (!product) {
+          // If we have local data, we can still return it even if Square doesn't have it
+          if (localProduct) {
+            console.log('⚠️ Product not found in Square but exists in local database');
+          } else {
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+          }
+        } else {
+          // We found the product in Square, process it
+          console.log('✅ Found product in Square, processing fresh data');
+          // Type cast to ensure TypeScript knows this is an ITEM
+          item = product as Square.CatalogObject & { type: 'ITEM'; itemData: Square.CatalogItem };
+          variation = item.itemData.variations![0] as Square.CatalogObject & { type: 'ITEM_VARIATION'; itemVariationData: Square.CatalogItemVariation };
+          price = Number(variation.itemVariationData.priceMoney!.amount) / 100;
+          
+          // Parse visibility and preorder status from description
+          description = item.itemData.description || '';
+          isHidden = description.includes('[HIDDEN FROM STORE]');
+          isPreorder = description.includes('[PREORDER]');
+          
+          // Fetch images from Square
+          imageIds = item.itemData.imageIds || [];
+          if (imageIds.length > 0) {
+            images = await Promise.all(imageIds.map(async (imageId: string) => {
+              try {
+                const imageResponse = await catalog.object.get({ objectId: imageId });
+                if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
+                  return { id: imageId, url: imageResponse.object.imageData.url || `/store.webp` };
+                } else {
+                  return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
+                }
+              } catch (error) {
+                console.error('Error fetching image from Square:', error);
+                return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
+              }
+            }));
+            if (images.length > 0) {
+              image = images[0].url;
+            }
+          }
+          
+          // Fetch inventory count
+          try {
+            const locationId = process.env.SQUARE_LOCATION_ID;
+            if (locationId) {
+              const inventory = await squareClient.inventory();
+              const inventoryResponse = await inventory.batchGetCounts({
+                locationIds: [locationId],
+                catalogObjectIds: [variation.id],
+              });
+              
+              if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
+                stockQuantity = Number(inventoryResponse.data[0].quantity) || 0;
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching inventory for variation:', variation.id, error);
+          }
+          
+          stockStatus = getStockStatus(stockQuantity);
+        }
+      } catch (error) {
+        console.error('Error fetching from Square API:', error);
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : 'No stack trace',
+          localProduct: !!localProduct
+        });
+        // If Square API fails, continue with cached data
+        if (!localProduct) {
+          return NextResponse.json({ error: 'Failed to fetch product data' }, { status: 500 });
         }
       }
-    } catch (error) {
-      console.error('Error fetching inventory for variation:', variation.id, error);
     }
-    
-    const stockStatus = getStockStatus(stockQuantity);
     
     // Use local product data if available, otherwise use Square data
     let localProductData: any = {};
@@ -155,7 +243,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     } else {
       // Fallback to database lookup by square_id
       try {
-        const db = new Database('data/porchrecords.db');
+        const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
+        const db = new Database(DB_PATH);
         const product = db.prepare('SELECT * FROM products WHERE square_id = ?').get(variation.id);
         db.close();
         
@@ -208,9 +297,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Map the product to the expected format for the edit page
+    console.log('🎯 Final localProductData:', localProductData);
     const mappedProduct = {
-      id: variation.id,
-      title: localProduct?.title || item.itemData!.name || 'No title',
+      id: id,
+      title: localProduct?.title || item?.itemData?.name || 'No title',
       artist: localProduct?.artist || 'Unknown Artist',
       price: localProduct?.price || price,
       description: localProduct?.description || description.replace(/\[HIDDEN FROM STORE\]|\[PREORDER\]/g, '').trim(),
@@ -237,53 +327,37 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-// PATCH - Update a product in Square (protected with admin auth)
+// PATCH - Update a product in local database (protected with admin auth)
 async function patchHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const productData = await request.json();
     
-    // First, find the item that contains this variation
-    const catalog = await squareClient.catalog();
-    const searchResponse = await catalog.searchItems({});
-    if (!searchResponse.items) {
-      return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+    console.log('🔄 PATCH: Updating product with ID:', id);
+    console.log('🔄 PATCH: Product data:', productData);
+    
+    // First, try to get product from local database (same logic as GET)
+    const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
+    const db = new Database(DB_PATH);
+    let localProduct: any = null;
+    
+    try {
+      console.log('🔍 PATCH: Looking for product in database with ID:', id);
+      // Try multiple ways to find the product
+      localProduct = db.prepare(`
+        SELECT * FROM products 
+        WHERE id = ? OR square_id = ? OR id = ? OR square_id = ?
+      `).get(id, id, `square_${id}`, `square_${id}`);
+      console.log('🔍 PATCH: Database lookup result:', localProduct ? 'Found' : 'Not found');
+    } finally {
+      db.close();
     }
     
-    const product = searchResponse.items.find((item: Square.CatalogObject) => {
-      if (item.type !== 'ITEM' || !item.itemData?.variations?.length) {
-        return false;
-      }
-      const variation = item.itemData.variations[0];
-      return variation.id === id;
-    });
-    
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    if (!localProduct) {
+      return NextResponse.json({ error: 'Product not found in local database' }, { status: 404 });
     }
     
-    // Type cast to ensure TypeScript knows this is an ITEM
-    const item = product as Square.CatalogObject & { type: 'ITEM'; itemData: Square.CatalogItem };
-    
-    // Build enhanced description with visibility and preorder status
-    let enhancedDescription = productData.description || '';
-    if (productData.isVisible === false) {
-      enhancedDescription += '\n[HIDDEN FROM STORE]';
-    }
-    if (productData.isPreorder) {
-      enhancedDescription += '\n[PREORDER]';
-    }
-    
-    // Update fields
-    const updatedObject = {
-      ...item,
-      itemData: {
-        ...item.itemData,
-        name: productData.title || item.itemData.name,
-        description: enhancedDescription,
-        // Add more fields as needed
-      },
-    };
+    console.log('✅ PATCH: Found product in database:', localProduct.title);
     
     // SKIP Square update - we only want to update local data
     console.log('⚠️ Skipping Square update for production safety - only updating local data');
@@ -296,12 +370,14 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
       productData.size !== undefined ||
       productData.color !== undefined ||
       productData.genre !== undefined ||
+      productData.mood !== undefined ||
       productData.description !== undefined ||
       productData.title !== undefined ||
       productData.price !== undefined
     ) {
       try {
-        const db = new Database('data/porchrecords.db');
+        const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
+        const db = new Database(DB_PATH);
         const now = new Date().toISOString();
 
         const existing: any = db.prepare(`
@@ -317,6 +393,7 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
               price = ?,
               description = ?,
               genre = ?,
+              mood = ?,
               product_type = ?,
               merch_category = ?,
               size = ?,
@@ -329,6 +406,7 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
             productData.price ?? existing.price,
             productData.description || existing.description,
             productData.genre || existing.genre,
+            productData.mood || existing.mood,
             productData.productType || existing.product_type,
             productData.merchCategory || existing.merch_category,
             productData.size || existing.size,
@@ -341,15 +419,16 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
           // Insert minimal row if not present; do NOT overwrite type later
           db.prepare(`
             INSERT INTO products (
-              id, title, price, description, genre, square_id, is_visible, is_from_square, product_type, merch_category, size, color, updated_at, created_at
+              id, title, price, description, genre, mood, square_id, is_visible, is_from_square, product_type, merch_category, size, color, updated_at, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
           `).run(
             `square_${id}`,
-            (productData.title || item.itemData.name),
+            (productData.title || 'No title'),
             productData.price ?? null,
             productData.description || null,
             productData.genre || null,
+            productData.mood || null,
             id,
             (productData.isVisible ? 1 : 0),
             productData.productType || 'record',
@@ -388,6 +467,19 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
 
 // Export PATCH with admin authentication
 export const PATCH = withAdminAuth(patchHandler);
+
+// Handle CORS preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
 
 // DELETE - Remove a product from Square
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

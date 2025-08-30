@@ -12,13 +12,15 @@ interface StoreClientPageProps {
   allGenres: string[];
   allMerchCategories: string[];
   allMoods: string[];
+  allProductTypes: string[];
 }
 
 export default function StoreClientPage({
   initialProducts,
   allGenres = [],
   allMerchCategories = [],
-  allMoods = []
+  allMoods = [],
+  allProductTypes = []
 }: StoreClientPageProps) {
   const [products, setProducts] = useState<StoreProduct[]>(initialProducts || []);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -68,7 +70,11 @@ export default function StoreClientPage({
       (product.artist && product.artist.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (product.genre && product.genre.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesProductType = selectedProductType === 'All' || product.productType === selectedProductType.toLowerCase();
+    const matchesProductType = selectedProductType === 'All' || 
+      product.productType?.toLowerCase() === selectedProductType.toLowerCase() ||
+      (selectedProductType === 'Records' && product.productType === 'record') ||
+      (selectedProductType === 'Merch' && product.productType === 'merch') ||
+      (selectedProductType === 'Accessories' && product.productType === 'accessory');
     const matchesGenre = selectedGenre === 'All' || product.genre === selectedGenre;
     const matchesMerchCategory = selectedMerchCategory === 'All' || product.merchCategory === selectedMerchCategory;
     const matchesMood = selectedMood === 'All' || product.mood === selectedMood;
@@ -149,9 +155,9 @@ export default function StoreClientPage({
             }}
           >
             <option value="All">All Items</option>
-            <option value="record">Records</option>
-            <option value="merch">Merch</option>
-            <option value="accessory">Accessories</option>
+            {allProductTypes.map(productType => (
+              <option key={productType} value={productType.toLowerCase()}>{productType}</option>
+            ))}
           </select>
           <select
             value={selectedGenre}

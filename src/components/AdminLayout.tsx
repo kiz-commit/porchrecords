@@ -55,9 +55,7 @@ const adminNavItems = [
   {
     title: "Catalog",
     items: [
-      { title: "Categories", href: "/admin/categories", icon: "🏷️" },
       { title: "Taxonomy", href: "/admin/taxonomy", icon: "🏛️" },
-      { title: "Merch Categories", href: "/admin/merch-categories", icon: "👕" },
     ],
   },
   {

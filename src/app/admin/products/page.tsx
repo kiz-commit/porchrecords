@@ -24,7 +24,8 @@ export default function AdminProducts() {
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/inventory');
+      // Use products API to get products from database
+      const response = await fetch('/api/admin/products');
       if (response.ok) {
         const data = await response.json();
         setProducts(data.products || []);

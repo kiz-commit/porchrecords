@@ -91,8 +91,8 @@ export async function POST() {
     console.log(`✅ Fetched ${response.items.length} items from Square`);
 
     // Prepare SQL statements for better performance
-    const insertOrUpdateProduct = db.prepare(`
-      INSERT OR REPLACE INTO products (
+    const insertProduct = db.prepare(`
+      INSERT INTO products (
         id, title, price, description, image, artist, genre, 
         is_preorder, square_id, is_from_square, is_visible,
         stock_quantity, stock_status, product_type, merch_category,
@@ -102,6 +102,19 @@ export async function POST() {
         updated_at, last_synced_at, square_updated_at, in_stock
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
+
+    const updateProduct = db.prepare(`
+      UPDATE products SET
+        title = ?, price = ?, description = ?, image = ?, 
+        stock_quantity = ?, stock_status = ?, 
+        image_ids = ?, images = ?,
+        preorder_release_date = ?, preorder_quantity = ?, preorder_max_quantity = ?,
+        is_variable_pricing = ?, min_price = ?, max_price = ?,
+        updated_at = ?, last_synced_at = ?, square_updated_at = ?, in_stock = ?
+      WHERE square_id = ?
+    `);
+
+    const checkExistingProduct = db.prepare('SELECT id, genre, mood, is_visible, product_type, merch_category, size, color FROM products WHERE square_id = ?');
 
     const now = new Date().toISOString();
 
@@ -133,19 +146,38 @@ export async function POST() {
             productType = 'merch';
           }
 
-          // Preserve any explicit product_type set locally (e.g., merch set via admin)
-          // Only override when our detection is more specific than default 'record'
-          const existingTypeRow = db
-            .prepare('SELECT product_type, merch_category FROM products WHERE square_id = ? OR id = ?')
-            .get(variation.id, variation.id) as { product_type?: string; merch_category?: string } | undefined;
-          let merchCategoryValue = '' as string;
-          if (existingTypeRow) {
-            // Keep admin-set type if it's not the generic 'record'
-            if (existingTypeRow.product_type && existingTypeRow.product_type !== 'record') {
-              productType = existingTypeRow.product_type;
-            }
-            if (existingTypeRow.merch_category) {
-              merchCategoryValue = existingTypeRow.merch_category;
+          // Check for existing product to preserve local changes
+          const existingProduct = checkExistingProduct.get(variation.id) as {
+            id?: string;
+            genre?: string;
+            mood?: string;
+            is_visible?: number;
+            product_type?: string;
+            merch_category?: string;
+            size?: string;
+            color?: string;
+          } | undefined;
+
+          // Preserve local changes if product exists
+          let genreValue = 'Uncategorized';
+          let moodValue = '';
+          let isVisible = true;
+          let merchCategoryValue = '';
+          let sizeValue = '';
+          let colorValue = '';
+
+          if (existingProduct) {
+            // Preserve admin-set values
+            genreValue = existingProduct.genre || 'Uncategorized';
+            moodValue = existingProduct.mood || '';
+            isVisible = Boolean(existingProduct.is_visible);
+            merchCategoryValue = existingProduct.merch_category || '';
+            sizeValue = existingProduct.size || '';
+            colorValue = existingProduct.color || '';
+            
+            // Only override product_type if our detection is more specific than default 'record'
+            if (existingProduct.product_type && existingProduct.product_type !== 'record') {
+              productType = existingProduct.product_type;
             }
           }
 
@@ -210,9 +242,7 @@ export async function POST() {
             imageUrl = '/voucher-image.svg';
           }
 
-          // Check existing visibility in database (preserve manual visibility settings)
-          const existingProduct = db.prepare('SELECT is_visible FROM products WHERE square_id = ?').get(variation.id) as { is_visible?: number } | undefined;
-          const isVisible = existingProduct ? Boolean(existingProduct.is_visible) : true;
+
 
           // Create the product ID (for vouchers, use item ID; for others, use variation ID)
           const productId = isVoucher ? item.id : variation.id;
@@ -221,46 +251,74 @@ export async function POST() {
           const preorderInfo = getPreorderInfo(db, variation.id);
           const isPreorder = Boolean(preorderInfo?.is_preorder);
 
-          // Insert or update the product
-          insertOrUpdateProduct.run(
-            productId,                                    // id
-            itemData.name || 'No title',                 // title
-            price,                                        // price
-            description.replace(/\[HIDDEN FROM STORE\]|\[PREORDER\]/g, '').trim(), // description (strip legacy tags)
-            imageUrl,                                     // image
-            'Unknown Artist',                             // artist (can be enhanced)
-            'Uncategorized',                             // genre (can be enhanced)
-            isPreorder,                                   // is_preorder
-            variation.id,                                 // square_id
-            true,                                         // is_from_square
-            isVisible,                                    // is_visible
-            stockQuantity,                                // stock_quantity
-            stockStatus,                                  // stock_status
-            productType,                                  // product_type
-            merchCategoryValue,                           // merch_category
-            '',                                          // size
-            '',                                          // color
-            '',                                          // mood
-            '',                                          // format
-            '',                                          // year
-            '',                                          // label
-            JSON.stringify(imageIds),                     // image_ids
-            JSON.stringify(images),                       // images
-            preorderInfo?.preorder_release_date || '',    // preorder_release_date
-            preorderInfo?.preorder_quantity ?? 0,         // preorder_quantity
-            preorderInfo?.preorder_max_quantity ?? 0,     // preorder_max_quantity
-            isVoucher,                                   // is_variable_pricing
-            isVoucher ? 10 : null,                       // min_price
-            isVoucher ? 500 : null,                      // max_price
-            now,                                         // created_at
-            now,                                         // updated_at
-            now,                                         // last_synced_at
-            item.updatedAt || now,                       // square_updated_at
-            stockQuantity > 0                            // in_stock (legacy field)
-          );
+          // Insert or update the product (preserving local changes)
+          if (existingProduct) {
+            // Update existing product (preserving local changes)
+            updateProduct.run(
+              itemData.name || 'No title',                 // title
+              price,                                        // price
+              description.replace(/\[HIDDEN FROM STORE\]|\[PREORDER\]/g, '').trim(), // description
+              imageUrl,                                     // image
+              stockQuantity,                                // stock_quantity
+              stockStatus,                                  // stock_status
+              JSON.stringify(imageIds),                     // image_ids
+              JSON.stringify(images),                       // images
+              preorderInfo?.preorder_release_date || '',    // preorder_release_date
+              preorderInfo?.preorder_quantity ?? 0,         // preorder_quantity
+              preorderInfo?.preorder_max_quantity ?? 0,     // preorder_max_quantity
+              isVoucher ? 1 : 0,                           // is_variable_pricing (convert boolean to integer)
+              isVoucher ? 10 : null,                       // min_price
+              isVoucher ? 500 : null,                      // max_price
+              now,                                         // updated_at
+              now,                                         // last_synced_at
+              item.updatedAt || now,                       // square_updated_at
+              stockQuantity > 0 ? 1 : 0,                   // in_stock (convert boolean to integer)
+              variation.id                                 // WHERE square_id = ?
+            );
+            console.log(`   🔄 Updated ${itemData.name} (preserved local changes)`);
+          } else {
+            // Insert new product
+            insertProduct.run(
+              productId,                                    // id
+              itemData.name || 'No title',                 // title
+              price,                                        // price
+              description.replace(/\[HIDDEN FROM STORE\]|\[PREORDER\]/g, '').trim(), // description
+              imageUrl,                                     // image
+              'Unknown Artist',                             // artist
+              genreValue,                                   // genre (preserved or default)
+              isPreorder ? 1 : 0,                          // is_preorder (convert boolean to integer)
+              variation.id,                                 // square_id
+              1,                                           // is_from_square (convert boolean to integer)
+              isVisible ? 1 : 0,                           // is_visible (convert boolean to integer)
+              stockQuantity,                                // stock_quantity
+              stockStatus,                                  // stock_status
+              productType,                                  // product_type
+              merchCategoryValue,                           // merch_category (preserved or default)
+              sizeValue,                                    // size (preserved or default)
+              colorValue,                                   // color (preserved or default)
+              moodValue,                                    // mood (preserved or default)
+              '',                                          // format
+              '',                                          // year
+              '',                                          // label
+              JSON.stringify(imageIds),                     // image_ids
+              JSON.stringify(images),                       // images
+              preorderInfo?.preorder_release_date || '',    // preorder_release_date
+              preorderInfo?.preorder_quantity ?? 0,         // preorder_quantity
+              preorderInfo?.preorder_max_quantity ?? 0,     // preorder_max_quantity
+              isVoucher ? 1 : 0,                           // is_variable_pricing (convert boolean to integer)
+              isVoucher ? 10 : null,                       // min_price
+              isVoucher ? 500 : null,                      // max_price
+              now,                                         // created_at
+              now,                                         // updated_at
+              now,                                         // last_synced_at
+              item.updatedAt || now,                       // square_updated_at
+              stockQuantity > 0 ? 1 : 0                    // in_stock (convert boolean to integer)
+            );
+            console.log(`   ➕ Added new product ${itemData.name}`);
+          }
 
           syncedCount++;
-          console.log(`   ✅ Synced ${itemData.name} - Type: ${productType}, Stock: ${stockQuantity}, Visible: ${isVisible ? '✅' : '❌'}`);
+          console.log(`   ✅ Synced ${itemData.name} - Type: ${productType}, Stock: ${stockQuantity}, Visible: ${isVisible ? '✅' : '❌'}, Genre: ${genreValue}, Mood: ${moodValue || 'none'}`);
 
         } catch (error) {
           console.error(`   ❌ Error processing product ${item.id}:`, error);
@@ -269,13 +327,14 @@ export async function POST() {
     }
 
     console.log(`🎉 Sync completed! Synced: ${syncedCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`);
+    console.log(`💾 Local changes (genre, mood, visibility) were preserved during sync`);
 
     return NextResponse.json({
       success: true,
       syncedCount,
       skippedCount,
       errorCount,
-      message: `Successfully synced ${syncedCount} products from Square`
+      message: `Successfully synced ${syncedCount} products from Square (local changes preserved)`
     });
 
   } catch (error) {

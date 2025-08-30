@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/database';
-import squareClient from '@/lib/square';
 
 interface StoreProduct {
   id: string;
@@ -28,82 +27,10 @@ interface StoreProduct {
   isVariablePricing?: boolean;
   minPrice?: number;
   maxPrice?: number;
+  slug: string;
 }
 
-// Helper function to check if product is available at the configured location
-async function isProductAvailableAtLocation(squareId: string): Promise<boolean> {
-  try {
-    const locationId = process.env.SQUARE_LOCATION_ID;
-    if (!locationId) {
-      console.log('⚠️  No SQUARE_LOCATION_ID configured - including all products');
-      return true; // Include all products if no location configured
-    }
 
-    console.log(`🔍 Checking location availability for product ${squareId} at location ${locationId}`);
-
-    // First, check if this product has inventory at the configured location
-    const inventory = await squareClient.inventory();
-    const inventoryResponse = await inventory.batchGetCounts({
-      locationIds: [locationId],
-      catalogObjectIds: [squareId],
-    });
-    
-    if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
-      const inventoryData = inventoryResponse.data[0] as any;
-      if (inventoryData && inventoryData.counts && inventoryData.counts.length > 0) {
-        const count = inventoryData.counts[0];
-        if (count && count.state === 'IN_STOCK' && count.quantity && count.quantity > 0) {
-          console.log(`✅ Product ${squareId} has inventory (${count.quantity}) at location ${locationId}`);
-          return true;
-        }
-      }
-    }
-    
-    // If no inventory found, check if the product is explicitly enabled at this location
-    try {
-      const catalog = await squareClient.catalog();
-      const productResponse = await catalog.object.get({ objectId: squareId });
-      
-      if (productResponse.object && productResponse.object.type === 'ITEM') {
-        const itemData = productResponse.object.itemData;
-        if (itemData && itemData.variations && itemData.variations.length > 0) {
-          const variation = itemData.variations[0];
-          if (variation.type === 'ITEM_VARIATION' && variation.itemVariationData) {
-            const locationOverrides = variation.itemVariationData.locationOverrides || [];
-            
-            // Check if there's an explicit override for this location
-            const locationOverride = locationOverrides.find(
-              (override: any) => override.locationId === locationId
-            );
-            
-            if (locationOverride) {
-              // If there's an override, check if it's enabled
-              if (locationOverride.trackInventory !== false) {
-                console.log(`✅ Product ${squareId} explicitly enabled at location ${locationId}`);
-                return true;
-              } else {
-                console.log(`❌ Product ${squareId} explicitly disabled at location ${locationId}`);
-                return false;
-              }
-            } else {
-              // No location override found - this means the product is not specifically configured for this location
-              console.log(`❌ Product ${squareId} has no location override for ${locationId} - excluding`);
-              return false;
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`Error checking product ${squareId} location availability:`, error);
-    }
-    
-    console.log(`❌ Product ${squareId} not available at location ${locationId}`);
-    return false;
-  } catch (error) {
-    console.error(`Error checking location availability for ${squareId}:`, error);
-    return false; // Default to exclude on error
-  }
-}
 
 // GET - Retrieve visible products from local database (super fast!)
 export async function GET(request: NextRequest) {
@@ -155,7 +82,7 @@ export async function GET(request: NextRequest) {
         genre, in_stock, is_preorder, is_visible, preorder_release_date,
         preorder_quantity, preorder_max_quantity, product_type, merch_category,
         size, color, mood, stock_quantity, stock_status, is_variable_pricing,
-        min_price, max_price, created_at, slug, square_id
+        min_price, max_price, created_at, slug
       FROM products
       ${whereClause}
       ORDER BY title ASC
@@ -165,8 +92,8 @@ export async function GET(request: NextRequest) {
     params.push(limit, offset);
     const rows = await db.all(query, ...params) as any[];
 
-    // Transform database rows to StoreProduct format and filter by location
-    const allProducts = rows.map((row: any) => ({
+    // Transform database rows to StoreProduct format (no location filtering needed)
+    const products: StoreProduct[] = rows.map((row: any) => ({
       id: row.id,
       title: row.title || 'No title',
       artist: row.artist || 'Unknown Artist',
@@ -192,35 +119,10 @@ export async function GET(request: NextRequest) {
       isVariablePricing: Boolean(row.is_variable_pricing),
       minPrice: row.min_price,
       maxPrice: row.max_price,
-      slug: row.slug,
-      squareId: row.square_id
+      slug: row.slug
     }));
-
-    // Filter products by location availability
-    const products: StoreProduct[] = [];
-    let includedCount = 0;
-    let excludedCount = 0;
     
-    for (const product of allProducts) {
-      if (product.squareId) {
-        const isAvailable = await isProductAvailableAtLocation(product.squareId);
-        if (isAvailable) {
-          // Remove squareId from final product object
-          const { squareId, ...productWithoutSquareId } = product;
-          products.push(productWithoutSquareId);
-          includedCount++;
-        } else {
-          excludedCount++;
-        }
-      } else {
-        // Include products without square_id (legacy products)
-        const { squareId, ...productWithoutSquareId } = product;
-        products.push(productWithoutSquareId);
-        includedCount++;
-      }
-    }
-    
-    console.log(`📍 Location filtering complete: ${includedCount} products included, ${excludedCount} products excluded`);
+    console.log(`🚀 Database query: Found ${products.length} visible products from local database`);
 
     console.log(`🚀 Database query: Found ${products.length} products in ${Date.now() - Date.now()}ms`);
 
@@ -258,9 +160,9 @@ async function getProductById(id: string): Promise<StoreProduct | null> {
         genre, in_stock, is_preorder, is_visible, preorder_release_date,
         preorder_quantity, preorder_max_quantity, product_type, merch_category,
         size, color, mood, stock_quantity, stock_status, is_variable_pricing,
-        min_price, max_price, created_at, slug, square_id
+        min_price, max_price, created_at, slug
       FROM products 
-      WHERE id = ? AND is_from_square = 1
+      WHERE id = ? AND is_from_square = 1 AND is_visible = 1
     `;
 
     const row = await db.get(query, id) as any;
@@ -269,7 +171,7 @@ async function getProductById(id: string): Promise<StoreProduct | null> {
       return null;
     }
 
-    const product = {
+    const product: StoreProduct = {
       id: row.id,
       title: row.title || 'No title',
       artist: row.artist || 'Unknown Artist',
@@ -295,21 +197,10 @@ async function getProductById(id: string): Promise<StoreProduct | null> {
       isVariablePricing: Boolean(row.is_variable_pricing),
       minPrice: row.min_price,
       maxPrice: row.max_price,
-      slug: row.slug,
-      squareId: row.square_id
+      slug: row.slug
     };
 
-    // Check location availability for Square products
-    if (product.squareId) {
-      const isAvailable = await isProductAvailableAtLocation(product.squareId);
-      if (!isAvailable) {
-        return null; // Product not available at current location
-      }
-    }
-
-    // Remove squareId from final product object
-    const { squareId, ...productWithoutSquareId } = product;
-    return productWithoutSquareId as StoreProduct;
+    return product;
 
   } catch (error) {
     console.error('❌ Error fetching product by ID from database:', error);

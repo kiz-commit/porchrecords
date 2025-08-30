@@ -214,7 +214,7 @@ export function isSensitiveRoute(pathname: string): boolean {
   return SENSITIVE_ADMIN_ROUTES.some(route => {
     if (route.includes('*')) {
       const pattern = route.replace('*', '[^/]+');
-      const regex = new RegExp(`^${pattern}`);
+      const regex = new RegExp(`^${pattern}$`);
       return regex.test(pathname);
     }
     return pathname.startsWith(route);

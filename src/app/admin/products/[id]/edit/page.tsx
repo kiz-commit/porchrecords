@@ -65,8 +65,8 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       const fetchOptions = async () => {
         try {
           const [genresRes, moodsRes] = await Promise.all([
-            fetch('/api/admin/taxonomy?type=genre'),
-            fetch('/api/admin/taxonomy?type=mood')
+            fetch('/api/admin/taxonomy?type=genre', { credentials: 'include' }),
+            fetch('/api/admin/taxonomy?type=mood', { credentials: 'include' })
           ]);
 
           if (genresRes.ok) {
@@ -91,7 +91,9 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       
       const fetchProduct = async () => {
         try {
-          const response = await fetch(`/api/admin/products/${id}`);
+          const response = await fetch(`/api/admin/products/${id}`, {
+          credentials: 'include'
+        });
           if (response.ok) {
             const data = await response.json();
             setProduct(data.product);
@@ -146,6 +148,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     try {
       const response = await fetch(`/api/admin/products/${productId}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -172,7 +175,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     setSyncingVars(true);
     setVariations(null);
     try {
-      const res = await fetch(`/api/admin/sync/variations?squareId=${productId}`, { method: 'POST' });
+              const res = await fetch(`/api/admin/sync/variations?squareId=${productId}`, { 
+          method: 'POST',
+          credentials: 'include'
+        });
       const data = await res.json();
       const result = data?.summary?.results?.[0];
       if (result?.status === 'success') {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { type TaxonomyItem } from '@/lib/taxonomy-utils';
+import { type TaxonomyItem } from '@/lib/taxonomy-db';
 import EmojiPicker from './EmojiPicker';
 
 interface TaxonomyManagerProps {
@@ -27,8 +27,9 @@ export default function TaxonomyManager({ initialType = 'mood' }: TaxonomyManage
   const [stats, setStats] = useState({
     genres: 0,
     moods: 0,
-    categories: 0,
-    tags: 0
+    tags: 0,
+    productTypes: 0,
+    merchCategories: 0
   });
 
   const loadItems = useCallback(async () => {
@@ -44,7 +45,11 @@ export default function TaxonomyManager({ initialType = 'mood' }: TaxonomyManage
       const statsResponse = await fetch('/api/admin/taxonomy');
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setStats(statsData.metadata?.byType || { categories: 0, tags: 0 });
+        setStats(statsData.metadata?.byType || { 
+          tags: 0, 
+          productTypes: 0, 
+          merchCategories: 0 
+        });
       }
     } catch (error) {
       console.error('Error loading taxonomy items:', error);
@@ -179,8 +184,9 @@ export default function TaxonomyManager({ initialType = 'mood' }: TaxonomyManage
   const typeLabels = {
     genre: 'Genres',
     mood: 'Moods',
-    category: 'Categories',
-    tag: 'Tags'
+    tag: 'Tags',
+    product_type: 'Product Types',
+    merch_category: 'Merch Categories'
   };
 
   if (isLoading) {

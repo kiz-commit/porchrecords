@@ -101,6 +101,130 @@ Ensure inventory (incl. preorder capacity) is updated atomically with payments w
     - Build and deployment successful
     - Taxonomy management fully functional in production
 
+### New (Phase 14) Quick Task
+- **Task 14.x: Improve Rate Limiting for Admin Panel** — `[x]` done
+  - **Issue**: Users hitting "Too many login attempts" and rate limiting errors during normal admin usage
+  - **Root Cause**: Rate limits were too restrictive for legitimate admin usage
+  - **Solution**: Increased rate limits and added rate limit clearing functionality
+  - **Files modified**:
+    - `src/lib/admin-security.ts` - Increased rate limits and added config system
+    - `src/lib/auth-middleware.ts` - Updated to use new rate limit config
+    - `src/lib/auth.ts` - Updated login rate limiting
+    - `src/app/api/admin/clear-rate-limits/route.ts` - New API endpoint to clear rate limits
+    - `src/app/admin/page.tsx` - Added "Clear Rate Limits" button to dashboard
+  - **Rate Limit Improvements**:
+    - Login attempts: 5 → 10 per 15 minutes
+    - General admin access: 100 → 500 per 15 minutes
+    - Sensitive operations: 20 → 100 per 15 minutes
+    - Added API endpoints category: 1000 per 15 minutes
+  - **Success criteria**:
+    - Rate limits are more permissive for legitimate usage
+    - Admin dashboard has button to clear rate limits when needed
+    - All rate limiting still protects against abuse
+  - **Test results**: 
+    - Build and deployment successful
+    - Rate limiting improvements deployed to production
+    - Clear rate limits functionality available in admin dashboard
+
+### New (Phase 15) Critical Fix
+- **Task 15.x: Fix Taxonomy Deletion by Migrating to SQLite Database** — `[x]` done
+  - **Issue**: Taxonomy deletion fails on production because it's still using JSON file storage instead of SQLite database
+  - **Root Cause**: The taxonomy system (`src/lib/taxonomy-utils.ts`) uses `src/data/taxonomy.json` while the rest of the app migrated to SQLite
+  - **Solution**: Migrate taxonomy system to use SQLite database like other data
+  - **Files to create/modify**:
+    - `src/lib/taxonomy-db.ts` - New database-based taxonomy utilities
+    - Update `src/lib/database.ts` - Add taxonomy table schema
+    - Update `src/app/api/admin/taxonomy/route.ts` - Use database functions
+    - Update `src/app/api/admin/taxonomy/[id]/route.ts` - Use database functions
+    - Update `src/app/api/admin/taxonomy/reorder/route.ts` - Use database functions
+    - `scripts/migrate-taxonomy-to-db.js` - Migration script to move existing taxonomy data to database
+  - **Success criteria**:
+    - Taxonomy CRUD operations work in production
+    - Existing taxonomy data preserved during migration
+    - File system dependency removed
+    - Proper error handling and logging
+  - **Test results**: 
+    - Migration script successfully moved 16 taxonomy items from JSON to database
+    - Build successful with no TypeScript errors
+    - API endpoints properly protected and functional
+    - Database schema includes taxonomy table with proper indexes
+    - Production deployment successful with taxonomy table created and populated
+    - All 16 taxonomy items (8 genres, 7 moods) now available in production
+    - Taxonomy CRUD operations now working correctly
+
+### New (Phase 16) Category System Consolidation
+- **Task 16.x: Consolidate Category Systems into Unified Taxonomy** — `[x]` done
+  - **Issue**: Multiple separate category management systems (Categories, Merch Categories, Taxonomy) creating confusion and duplication
+  - **Root Cause**: Hardcoded categories in separate admin pages instead of using the unified taxonomy system
+  - **Solution**: Consolidate all category management into the taxonomy system
+  - **Files to create/modify**:
+    - Updated taxonomy database schema to support new category types
+    - Added 11 new categories to taxonomy (3 product_types, 8 merch_categories)
+    - Removed redundant admin pages (Categories, Merch Categories)
+    - Updated navigation to remove redundant links
+    - Migration scripts to move hardcoded categories to taxonomy
+    - Updated store filters to use unified taxonomy system
+  - **Success criteria**:
+    - Single taxonomy management interface for all categories
+    - All existing functionality continues to work
+    - No breaking changes to database schema or APIs
+    - Cleaner, more consistent admin interface
+    - Store filters use unified taxonomy system
+  - **Test results**: 
+    - Successfully consolidated all category systems into unified taxonomy
+    - 27 total taxonomy items covering all category types
+    - Removed redundant admin pages and navigation links
+    - Production deployment successful with all categories migrated
+    - Clean, unified interface for all category management
+    - Store filters now use taxonomy system instead of hardcoded values
+    - Taxonomy management interface updated to include Product Types and Merch Categories tabs
+
+### New (Phase 17) Store API Fix - Remove Square Location Filtering
+- **Task 17.x: Fix Store Products API to Use Local Database Only** — `[x]` done
+  - **Issue**: Store page showing no products despite 307 products being in the database
+  - **Root Cause**: API was doing Square location filtering which was excluding all products due to location configuration issues
+  - **Solution**: Remove Square location filtering and rely on local database's `is_visible` field
+  - **Files modified**:
+    - `src/app/api/store/products/route.ts` - Removed Square location filtering logic
+    - Removed `isProductAvailableAtLocation` function and Square client import
+    - Updated product queries to use `is_visible = 1` filter from local database
+    - Simplified product transformation to remove `squareId` field
+  - **Success criteria**:
+    - Store page displays products from local database
+    - API returns products based on `is_visible` field only
+    - No Square API calls for location filtering
+    - Faster API response times (no external API calls)
+  - **Test results**: 
+    - API now returns 5 products when testing with `limit=5`
+    - Store page loads successfully with product data
+    - Database query shows "Found 5 visible products from local database"
+    - Removed complex location filtering logic that was causing issues
+    - API response time improved by removing Square API calls
+
+### New (Phase 18) Product Sync Preservation - Maintain Local Changes
+- **Task 18.x: Fix Product Sync to Preserve Local Changes** — `[x]` done
+  - **Issue**: Full sync was resetting the database and losing all manual changes (genre, mood, visibility, etc.)
+  - **Root Cause**: Sync was using `INSERT OR REPLACE` which completely overwrote existing records
+  - **Solution**: Implement smart sync that preserves local changes while updating Square data
+  - **Files modified**:
+    - `src/app/api/admin/sync/products/route.ts` - Replaced `INSERT OR REPLACE` with separate `INSERT` and `UPDATE` logic
+    - Added `checkExistingProduct` query to detect existing products
+    - Added `updateProduct` prepared statement for updating existing products
+    - Modified product processing to preserve genre, mood, visibility, product_type, merch_category, size, color
+    - Enhanced logging to show when local changes are preserved
+  - **Success criteria**:
+    - Sync updates Square data (title, price, description, images, inventory) without losing local changes
+    - Local changes (genre, mood, visibility, product_type, merch_category, size, color) are preserved
+    - New products are added with default values
+    - Existing products are updated while preserving admin-set values
+    - Clear logging shows what's being preserved vs updated
+  - **Test results**: 
+    - Sync now uses separate INSERT/UPDATE logic instead of REPLACE
+    - Local changes are preserved during sync operations
+    - Enhanced logging shows "preserved local changes" for existing products
+    - New products get default values, existing products keep admin-set values
+    - Sync message updated to indicate "local changes preserved"
+
 ## Previous Work (Completed)
 - **Phase 1-8: Page Builder System** — ✅ All completed (see history below)
 - **Phase 9: Security & Authentication** — ✅ **COMPLETED** - Enhanced security system with 2FA, secure sessions, audit logging

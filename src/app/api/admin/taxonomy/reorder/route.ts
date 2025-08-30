@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { reorderTaxonomyItems, type TaxonomyItem } from '@/lib/taxonomy-utils';
+import { reorderTaxonomyItems, type TaxonomyItem } from '@/lib/taxonomy-db';
 import { withAdminAuth } from '@/lib/route-protection';
 
 // POST - Reorder taxonomy items within a type
@@ -15,15 +15,15 @@ async function postHandler(request: NextRequest) {
     }
 
     // Validate type
-    const validTypes = ['genre', 'mood', 'category', 'tag'];
+    const validTypes = ['genre', 'mood', 'tag', 'product_type', 'merch_category'];
     if (!validTypes.includes(body.type)) {
       return NextResponse.json(
-        { error: 'Invalid type. Must be one of: genre, mood, category, tag' }, 
+        { error: 'Invalid type. Must be one of: genre, mood, tag, product_type, merch_category' }, 
         { status: 400 }
       );
     }
 
-    reorderTaxonomyItems(body.type as TaxonomyItem['type'], body.orderedIds);
+    await reorderTaxonomyItems(body.type as TaxonomyItem['type'], body.orderedIds);
 
     return NextResponse.json({ 
       success: true, 

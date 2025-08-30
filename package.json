@@ -19,6 +19,9 @@
     "setup-preorder": "tsx scripts/setup-preorder-attribute.ts",
     "setup-inventory": "node scripts/setup-inventory.js",
     "migrate-db": "node scripts/migrate-to-database.js",
+    "migrate-taxonomy": "node scripts/migrate-taxonomy-to-db.js",
+    "update-taxonomy-schema": "node scripts/update-taxonomy-schema.js",
+    "consolidate-categories": "node scripts/consolidate-categories.js",
     "migrate-config": "tsx scripts/migrate-configuration.ts",
     "cleanup-test": "node scripts/cleanup-test-data.js",
     "init-site-config": "node scripts/initialize-site-config.js"

@@ -3,7 +3,7 @@ import {
   getTaxonomyById, 
   updateTaxonomyItem, 
   deleteTaxonomyItem 
-} from '@/lib/taxonomy-utils';
+} from '@/lib/taxonomy-db';
 import { withAdminAuth } from '@/lib/route-protection';
 
 // GET - Get a specific taxonomy item
@@ -13,7 +13,7 @@ async function getHandler(
 ) {
   try {
     const { id } = await params;
-    const item = getTaxonomyById(id);
+    const item = await getTaxonomyById(id);
     
     if (!item) {
       return NextResponse.json(
@@ -41,7 +41,7 @@ async function putHandler(
     const { id } = await params;
     const body = await request.json();
     
-    const updatedItem = updateTaxonomyItem(id, {
+    const updatedItem = await updateTaxonomyItem(id, {
       name: body.name?.trim(),
       emoji: body.emoji,
       color: body.color,
@@ -73,7 +73,7 @@ async function deleteHandler(
 ) {
   try {
     const { id } = await params;
-    const success = deleteTaxonomyItem(id);
+    const success = await deleteTaxonomyItem(id);
     
     if (!success) {
       return NextResponse.json(

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { 
-  getTaxonomyData, 
+  getAllTaxonomyItems, 
   getTaxonomyByType, 
   addTaxonomyItem, 
+  getTaxonomyStats,
   type TaxonomyItem 
-} from '@/lib/taxonomy-utils';
+} from '@/lib/taxonomy-db';
 import { withAdminAuth } from '@/lib/route-protection';
 
 // GET - List all taxonomy items or filter by type
@@ -15,7 +16,7 @@ async function getHandler(request: NextRequest) {
     const includeInactive = searchParams.get('includeInactive') === 'true';
 
     if (type) {
-      const items = getTaxonomyByType(type);
+      const items = await getTaxonomyByType(type);
       return NextResponse.json({ 
         items,
         type,
@@ -23,23 +24,16 @@ async function getHandler(request: NextRequest) {
       });
     }
 
-    const data = getTaxonomyData();
-    const items = includeInactive 
-      ? data.items 
-      : data.items.filter(item => item.isActive);
+    const items = await getAllTaxonomyItems(includeInactive);
+    const stats = await getTaxonomyStats();
 
     return NextResponse.json({
       items,
       metadata: {
-        lastUpdated: data.lastUpdated,
-        version: data.version,
-        totalCount: items.length,
-        byType: {
-          genres: items.filter(item => item.type === 'genre').length,
-          moods: items.filter(item => item.type === 'mood').length,
-          categories: items.filter(item => item.type === 'category').length,
-          tags: items.filter(item => item.type === 'tag').length,
-        }
+        lastUpdated: new Date().toISOString(),
+        version: "2.0.0",
+        totalCount: stats.totalCount,
+        byType: stats.byType
       }
     });
   } catch (error) {
@@ -65,15 +59,15 @@ async function postHandler(request: NextRequest) {
     }
 
     // Validate type
-    const validTypes = ['genre', 'mood', 'category', 'tag'];
+    const validTypes = ['genre', 'mood', 'tag', 'product_type', 'merch_category'];
     if (!validTypes.includes(body.type)) {
       return NextResponse.json(
-        { error: 'Invalid type. Must be one of: genre, mood, category, tag' }, 
+        { error: 'Invalid type. Must be one of: genre, mood, tag, product_type, merch_category' }, 
         { status: 400 }
       );
     }
 
-    const newItem = addTaxonomyItem({
+    const newItem = await addTaxonomyItem({
       name: body.name.trim(),
       type: body.type,
       emoji: body.emoji || '',
