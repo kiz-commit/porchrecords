@@ -212,6 +212,7 @@ Ensure inventory (incl. preorder capacity) is updated atomically with payments w
     - Added `updateProduct` prepared statement for updating existing products
     - Modified product processing to preserve genre, mood, visibility, product_type, merch_category, size, color
     - Enhanced logging to show when local changes are preserved
+    - Fixed SQLite binding errors by converting booleans to integers
   - **Success criteria**:
     - Sync updates Square data (title, price, description, images, inventory) without losing local changes
     - Local changes (genre, mood, visibility, product_type, merch_category, size, color) are preserved
@@ -224,6 +225,9 @@ Ensure inventory (incl. preorder capacity) is updated atomically with payments w
     - Enhanced logging shows "preserved local changes" for existing products
     - New products get default values, existing products keep admin-set values
     - Sync message updated to indicate "local changes preserved"
+    - Fixed SQLite binding errors - sync now works without errors
+    - Successfully deployed to production
+    - Store page now displays products correctly in production
 
 ## Previous Work (Completed)
 - **Phase 1-8: Page Builder System** — ✅ All completed (see history below)

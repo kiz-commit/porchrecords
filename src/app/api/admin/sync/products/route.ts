@@ -68,14 +68,9 @@ export async function POST() {
   try {
     console.log('🔄 Starting product sync from Square API to local database...');
     
-    // Use location filtering to only fetch items available at our location
-    const locationId = process.env.SQUARE_LOCATION_ID;
-    const searchRequest = locationId 
-      ? { enabledLocationIds: [locationId] }
-      : {};
-    
+    // Fetch all items from Square (no location filtering to preserve all products)
     const catalog = await squareClient.catalog();
-    const response = await catalog.searchItems(searchRequest);
+    const response = await catalog.searchItems({});
     
     if (!response.items) {
       console.log('⚠️  No items returned from Square API');
@@ -190,29 +185,25 @@ export async function POST() {
 
           const price = isVoucher ? 0 : Number(variation.itemVariationData?.priceMoney?.amount || 0) / 100;
 
-          // Get inventory info (skip for vouchers)
+          // Get inventory info (with location filtering but don't skip products)
           let stockQuantity = 0;
           let stockStatus = 'out_of_stock';
-          let hasInventory = true;
 
           if (!isVoucher) {
+            // Check inventory at the configured location
             const inventoryInfo = await hasLocationInventory(variation.id);
-            hasInventory = inventoryInfo.hasInventory;
             stockQuantity = inventoryInfo.quantity;
             
-            if (!hasInventory) {
-              console.log(`   ⚠️  Skipping ${itemData.name} - no inventory at location`);
-              skippedCount++;
-              continue;
-            }
-            
+            // Don't skip products without inventory - just mark them as out of stock
             stockStatus = stockQuantity === 0 ? 'out_of_stock' : 
                          stockQuantity < 3 ? 'low_stock' : 'in_stock';
+            
+            console.log(`   📦 ${itemData.name}: ${stockQuantity} units at location (${stockStatus})`);
           } else {
             // Vouchers are always "in stock"
             stockQuantity = 999;
             stockStatus = 'in_stock';
-            console.log(`   🎫 Voucher product ${itemData.name} - skipping inventory check`);
+            console.log(`   🎫 Voucher product ${itemData.name} - always in stock`);
           }
 
           // Get image URL
