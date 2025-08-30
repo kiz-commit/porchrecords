@@ -89,8 +89,11 @@ export function processSquareItem(item: Square.CatalogObject): {
     }
     
     const itemData = item.itemData;
-    const variation = itemData.variations[0];
+    if (!itemData?.variations?.length) {
+      return null;
+    }
     
+    const variation = itemData.variations[0];
     if (variation.type !== 'ITEM_VARIATION' || !variation.id) {
       return null;
     }

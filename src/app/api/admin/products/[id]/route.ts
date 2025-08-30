@@ -376,43 +376,7 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
     }, { status: 500 });
   }
 }
-            productData.genre || null,
-            productData.mood || null,
-            id,
-            (productData.isVisible ? 1 : 0),
-            productData.productType || 'record',
-            productData.merchCategory || null,
-            productData.size || null,
-            productData.color || null,
-            now,
-            now
-          );
-        }
 
-        db.close();
-        console.log(`✅ Saved admin edits for product ${id}`);
-      } catch (error) {
-        console.error('Error saving product to database:', error);
-      }
-    }
-    
-    // Return success response - no Square object to serialize
-    const response = {
-      success: true,
-      id: id,
-      isVisible: productData.isVisible !== undefined ? productData.isVisible : true,
-      message: 'Product visibility updated in local database only'
-    };
-    
-    // Invalidate the products cache so changes appear immediately in the store
-    invalidateProductsCache('product visibility update');
-    
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('Error updating product in Square:', error);
-    return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
-  }
-}
 
 // Export PATCH with admin authentication
 export const PATCH = withAdminAuth(patchHandler);

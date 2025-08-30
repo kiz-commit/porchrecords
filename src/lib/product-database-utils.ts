@@ -166,6 +166,57 @@ export function updateProductInventory(
 }
 
 /**
+ * Update admin-managed fields for a product
+ */
+export function updateAdminFields(
+  squareId: string,
+  adminFields: {
+    genre?: string;
+    mood?: string;
+    productType?: string;
+    merchCategory?: string;
+    isVisible?: boolean;
+    size?: string;
+    color?: string;
+  }
+): boolean {
+  const db = new Database(DB_PATH);
+  
+  try {
+    const now = new Date().toISOString();
+    
+    const updateQuery = `
+      UPDATE products 
+      SET genre = COALESCE(?, genre),
+          mood = COALESCE(?, mood),
+          product_type = COALESCE(?, product_type),
+          merch_category = COALESCE(?, merch_category),
+          is_visible = COALESCE(?, is_visible),
+          size = COALESCE(?, size),
+          color = COALESCE(?, color),
+          updated_at = ?
+      WHERE square_id = ? AND is_from_square = 1
+    `;
+
+    const result = db.prepare(updateQuery).run(
+      adminFields.genre,
+      adminFields.mood,
+      adminFields.productType,
+      adminFields.merchCategory,
+      adminFields.isVisible !== undefined ? (adminFields.isVisible ? 1 : 0) : undefined,
+      adminFields.size,
+      adminFields.color,
+      now,
+      squareId
+    );
+
+    return result.changes > 0;
+  } finally {
+    db.close();
+  }
+}
+
+/**
  * Reset all products to not available at location (for sync preparation)
  */
 export function resetLocationAvailability(): void {
