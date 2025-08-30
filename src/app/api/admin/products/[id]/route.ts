@@ -327,6 +327,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
+import { updateAdminFields } from '@/lib/product-database-utils';
+
 // PATCH - Update a product in local database (protected with admin auth)
 async function patchHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -336,97 +338,44 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
     console.log('🔄 PATCH: Updating product with ID:', id);
     console.log('🔄 PATCH: Product data:', productData);
     
-    // First, try to get product from local database (same logic as GET)
-    const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
-    const db = new Database(DB_PATH);
-    let localProduct: any = null;
+    // Extract admin-managed fields from request
+    const adminFields = {
+      genre: productData.genre,
+      mood: productData.mood,
+      productType: productData.productType,
+      merchCategory: productData.merchCategory,
+      isVisible: productData.isVisible,
+      size: productData.size,
+      color: productData.color
+    };
     
-    try {
-      console.log('🔍 PATCH: Looking for product in database with ID:', id);
-      // Try multiple ways to find the product
-      localProduct = db.prepare(`
-        SELECT * FROM products 
-        WHERE id = ? OR square_id = ? OR id = ? OR square_id = ?
-      `).get(id, id, `square_${id}`, `square_${id}`);
-      console.log('🔍 PATCH: Database lookup result:', localProduct ? 'Found' : 'Not found');
-    } finally {
-      db.close();
-    }
+    // Update admin fields in database (preserves other fields)
+    const success = updateAdminFields(id, adminFields);
     
-    if (!localProduct) {
+    if (!success) {
       return NextResponse.json({ error: 'Product not found in local database' }, { status: 404 });
     }
     
-    console.log('✅ PATCH: Found product in database:', localProduct.title);
+    console.log('✅ PATCH: Successfully updated admin fields for product:', id);
     
-    // SKIP Square update - we only want to update local data
-    console.log('⚠️ Skipping Square update for production safety - only updating local data');
+    // Invalidate cache so changes appear immediately
+    invalidateProductsCache('admin product edit');
     
-    // Save admin edits to local database (visibility, type, merch fields, text fields)
-    if (
-      productData.isVisible !== undefined ||
-      productData.productType !== undefined ||
-      productData.merchCategory !== undefined ||
-      productData.size !== undefined ||
-      productData.color !== undefined ||
-      productData.genre !== undefined ||
-      productData.mood !== undefined ||
-      productData.description !== undefined ||
-      productData.title !== undefined ||
-      productData.price !== undefined
-    ) {
-      try {
-        const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
-        const db = new Database(DB_PATH);
-        const now = new Date().toISOString();
-
-        const existing: any = db.prepare(`
-          SELECT * FROM products WHERE square_id = ? OR id = ?
-        `).get(id, `square_${id}`);
-
-        if (existing && existing.id) {
-          db.prepare(`
-            UPDATE products 
-            SET 
-              is_visible = ?,
-              title = ?,
-              price = ?,
-              description = ?,
-              genre = ?,
-              mood = ?,
-              product_type = ?,
-              merch_category = ?,
-              size = ?,
-              color = ?,
-              updated_at = ?
-            WHERE id = ? OR square_id = ?
-          `).run(
-            productData.isVisible === undefined ? existing.is_visible : (productData.isVisible ? 1 : 0),
-            productData.title || existing.title,
-            productData.price ?? existing.price,
-            productData.description || existing.description,
-            productData.genre || existing.genre,
-            productData.mood || existing.mood,
-            productData.productType || existing.product_type,
-            productData.merchCategory || existing.merch_category,
-            productData.size || existing.size,
-            productData.color || existing.color,
-            now,
-            existing.id,
-            id
-          );
-        } else {
-          // Insert minimal row if not present; do NOT overwrite type later
-          db.prepare(`
-            INSERT INTO products (
-              id, title, price, description, genre, mood, square_id, is_visible, is_from_square, product_type, merch_category, size, color, updated_at, created_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
-          `).run(
-            `square_${id}`,
-            (productData.title || 'No title'),
-            productData.price ?? null,
-            productData.description || null,
+    return NextResponse.json({
+      success: true,
+      message: 'Product updated successfully'
+    });
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Error updating product:', error);
+    
+    return NextResponse.json({
+      success: false,
+      error: errorMessage
+    }, { status: 500 });
+  }
+}
             productData.genre || null,
             productData.mood || null,
             id,

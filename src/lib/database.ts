@@ -151,8 +151,20 @@ export async function initializeDatabase(): Promise<void> {
       has_variations BOOLEAN DEFAULT 0,
       variation_count INTEGER DEFAULT 0,
       last_variation_sync TEXT,
-      variations TEXT
+      variations TEXT,
+      available_at_location BOOLEAN DEFAULT 1
     )
+  `);
+
+  // Create indexes for performance
+  await database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_products_location_available ON products(available_at_location);
+    CREATE INDEX IF NOT EXISTS idx_products_square_id ON products(square_id);
+    CREATE INDEX IF NOT EXISTS idx_products_visible ON products(is_visible);
+    CREATE INDEX IF NOT EXISTS idx_products_from_square ON products(is_from_square);
+    CREATE INDEX IF NOT EXISTS idx_products_type ON products(product_type);
+    CREATE INDEX IF NOT EXISTS idx_products_genre ON products(genre);
+    CREATE INDEX IF NOT EXISTS idx_products_mood ON products(mood);
   `);
 
   // Create genres table (simple array of strings)

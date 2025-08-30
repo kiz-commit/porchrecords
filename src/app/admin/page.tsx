@@ -66,11 +66,12 @@ export default function AdminDashboard() {
     try {
       setIsRefreshingCache(true);
       setRefreshMessage(null);
-      // 1) Sync products into the local database using the robust auto-sync (handles pagination + location fallback)
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
-      const syncRes = await fetch(`${baseUrl}/api/store/sync-and-get-products`, {
-        method: 'GET',
-        cache: 'no-store'
+      
+      // 1) Run sync using the new unified sync endpoint
+      const syncRes = await fetch('/api/admin/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction: 'pull' })
       });
       let syncInfo: any = null;
       try { syncInfo = await syncRes.json(); } catch {}
@@ -90,8 +91,8 @@ export default function AdminDashboard() {
         setRefreshMessage(`Cache refresh failed: ${data?.error || res.statusText}`);
         return;
       }
-      const syncedCount = typeof syncInfo?.syncedCount === 'number' ? syncInfo.syncedCount : (Array.isArray(syncInfo?.products) ? syncInfo.products.length : undefined);
-      setRefreshMessage(`Synced${syncedCount !== undefined ? ` ${syncedCount}` : ''} and refreshed cache (${data?.message || 'all'}) at ${new Date().toLocaleTimeString()}`);
+      const syncedCount = syncInfo?.syncedCount || 0;
+      setRefreshMessage(`Synced ${syncedCount} products and refreshed cache (${data?.message || 'all'}) at ${new Date().toLocaleTimeString()}`);
       // Optionally reload quick stats after cache refresh
       // Trigger the same loader used on mount
       // Note: inventory endpoint is no-store, so this reflects latest

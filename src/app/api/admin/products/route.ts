@@ -8,56 +8,13 @@ import Database from 'better-sqlite3';
 
 
 
+import { getProductsByLocation } from '@/lib/product-database-utils';
+
 // GET - Fetch all products from database (protected with admin auth)
 async function getHandler(request: NextRequest) {
-  const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
-  const db = new Database(DB_PATH);
-  
   try {
-    // Get all products from database that are available at the configured location
-    const query = `
-      SELECT 
-        id, title, artist, price, description, image, images, image_ids,
-        genre, in_stock, is_preorder, is_visible, preorder_release_date,
-        preorder_quantity, preorder_max_quantity, product_type, merch_category,
-        size, color, mood, stock_quantity, stock_status, is_variable_pricing,
-        min_price, max_price, created_at, slug, square_id, is_from_square, available_at_location
-      FROM products 
-      WHERE is_from_square = 1 AND square_id IS NOT NULL AND available_at_location = 1
-      ORDER BY title ASC
-    `;
-
-    const rows = db.prepare(query).all() as any[];
-
-    // Transform database rows to StoreProduct format
-    const products: StoreProduct[] = rows.map((row: any) => ({
-      id: row.id,
-      title: row.title || 'No title',
-      artist: row.artist || 'Unknown Artist',
-      price: row.price || 0,
-      description: row.description || '',
-      image: row.image || '/store.webp',
-      images: row.images ? JSON.parse(row.images) : [],
-      imageIds: row.image_ids ? JSON.parse(row.image_ids) : [],
-      genre: row.genre || 'Uncategorized',
-      inStock: Boolean(row.in_stock),
-      isPreorder: Boolean(row.is_preorder),
-      isVisible: Boolean(row.is_visible),
-      preorderReleaseDate: row.preorder_release_date || '',
-      preorderQuantity: row.preorder_quantity || 0,
-      preorderMaxQuantity: row.preorder_max_quantity || 0,
-      productType: row.product_type || 'record',
-      merchCategory: row.merch_category || '',
-      size: row.size || '',
-      color: row.color || '',
-      mood: row.mood || '',
-      stockQuantity: row.stock_quantity || 0,
-      stockStatus: row.stock_status || 'out_of_stock',
-      isVariablePricing: Boolean(row.is_variable_pricing),
-      minPrice: row.min_price,
-      maxPrice: row.max_price,
-      slug: row.slug
-    }));
+    // Get all products available at the configured location (including hidden for admin)
+    const products = getProductsByLocation(true); // includeHidden = true for admin
 
     console.log(`📊 Admin: Showing ${products.length} products from database`);
     
@@ -65,8 +22,6 @@ async function getHandler(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching products from database:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
-  } finally {
-    db.close();
   }
 }
 

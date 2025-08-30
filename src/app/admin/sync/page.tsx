@@ -28,7 +28,7 @@ export default function AdminSync() {
 
   const fetchSyncStatus = async () => {
     try {
-      const response = await fetch('/api/admin/sync/status');
+      const response = await fetch('/api/admin/sync');
       if (response.ok) {
         const data = await response.json();
         setSyncStatus(data);
@@ -53,38 +53,7 @@ export default function AdminSync() {
 
       if (response.ok) {
         const data = await response.json();
-        const newLog: string[] = [...(data.log || [])];
-
-        // After legacy sync completes, perform robust auto-sync to update store database (pagination + fallback)
-        newLog.push('---');
-        newLog.push('Starting database auto-sync (paginated, location-aware)...');
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
-        const dbSyncRes = await fetch(`${baseUrl}/api/store/sync-and-get-products`, { method: 'GET', cache: 'no-store' });
-        let dbSyncJson: any = null;
-        try { dbSyncJson = await dbSyncRes.json(); } catch {}
-        if (dbSyncRes.ok && dbSyncJson?.success !== false) {
-          const synced = typeof dbSyncJson?.syncedCount === 'number' ? dbSyncJson.syncedCount : (Array.isArray(dbSyncJson?.products) ? dbSyncJson.products.length : '?');
-          newLog.push(`DB Sync: synced ${synced} items`);
-        } else {
-          newLog.push(`DB Sync failed: ${dbSyncJson?.error || dbSyncRes.statusText}`);
-        }
-
-        // Invalidate all caches so frontend/admin reflect latest data
-        newLog.push('Revalidating caches...');
-        const invalidateRes = await fetch('/api/admin/cache/invalidate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'all' })
-        });
-        let invalidateJson: any = null;
-        try { invalidateJson = await invalidateRes.json(); } catch {}
-        if (invalidateRes.ok && invalidateJson?.success) {
-          newLog.push(`Caches invalidated: ${invalidateJson?.message || 'all'}`);
-        } else {
-          newLog.push(`Cache invalidation failed: ${invalidateJson?.error || invalidateRes.statusText}`);
-        }
-
-        setSyncLog(newLog);
+        setSyncLog(data.log || []);
         await fetchSyncStatus();
       } else {
         const error = await response.json();

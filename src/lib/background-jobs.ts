@@ -21,19 +21,10 @@ export class BackgroundJobManager {
     this.addJob({
       id: 'product-sync',
       name: 'Product Sync',
-      endpoint: '/api/admin/sync/products-simple',
+      endpoint: '/api/admin/sync',
       intervalMs: 30 * 60 * 1000, // 30 minutes
       isRunning: false,
       enabled: false // Disabled by default, can be enabled via admin
-    });
-
-    this.addJob({
-      id: 'inventory-sync',
-      name: 'Inventory Sync',
-      endpoint: '/api/admin/sync/inventory',
-      intervalMs: 10 * 60 * 1000, // 10 minutes
-      isRunning: false,
-      enabled: false // Disabled by default
     });
   }
 
