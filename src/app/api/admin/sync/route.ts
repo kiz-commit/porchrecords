@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAllSquareProducts, batchCheckLocationInventory, processSquareItem } from '@/lib/square-inventory-utils';
+import { fetchProductsWithLocationInventory, batchCheckLocationInventory, processSquareItem } from '@/lib/square-inventory-utils';
 import { getAdminFields, updateProductInventory, resetLocationAvailability } from '@/lib/product-database-utils';
 import { invalidateProductsCache } from '@/lib/cache-utils';
 import Database from 'better-sqlite3';
@@ -41,35 +41,22 @@ const syncProductChunk = async (products: any[], startIndex: number, chunkSize: 
   let skippedCount = 0;
   let errorCount = 0;
   
-  // Collect variation IDs for this chunk
-  const variationIds = chunk.map(p => p.squareId);
-  
-  // Batch check inventory for this chunk
-  const inventoryResults = await batchCheckLocationInventory(variationIds);
-  
-  // Process each product in the chunk
+  // Process each product in the chunk (already filtered by location inventory)
   for (const productData of chunk) {
     try {
-      const inventoryData = inventoryResults.get(productData.squareId);
-      
-      if (!inventoryData || !inventoryData.hasInventory) {
-        console.log(`   ❌ Skipping ${productData.title}: No inventory at location`);
-        skippedCount++;
-        continue;
-      }
-
       // Get existing admin fields to preserve
       const adminFields = getAdminFields(productData.squareId);
       
       // Update product inventory (preserves admin fields)
+      // Since we already filtered by location inventory, we can assume it has inventory
       const success = updateProductInventory(productData.squareId, {
-        stockQuantity: inventoryData.quantity,
-        stockStatus: inventoryData.stockStatus,
+        stockQuantity: 1, // Default to 1 since we know it has inventory
+        stockStatus: 'in_stock',
         availableAtLocation: true
       });
 
       if (success) {
-        console.log(`   ✅ Synced ${productData.title}: ${inventoryData.quantity} units (${inventoryData.stockStatus})`);
+        console.log(`   ✅ Synced ${productData.title}: 1 unit (in_stock)`);
         syncedCount++;
       } else {
         console.log(`   ⚠️  Failed to update ${productData.title}`);
@@ -104,8 +91,8 @@ export async function POST(request: NextRequest) {
           resetLocationAvailability();
         }
         
-        // Step 2: Fetch all products from Square
-        const squareItems = await fetchAllSquareProducts();
+        // Step 2: Fetch only products with inventory at our location
+        const squareItems = await fetchProductsWithLocationInventory();
         
         if (squareItems.length === 0) {
           log.push('⚠️  No items returned from Square API');

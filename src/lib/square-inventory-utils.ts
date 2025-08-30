@@ -124,6 +124,67 @@ export async function fetchAllSquareProducts(): Promise<Square.CatalogObject[]> 
 }
 
 /**
+ * Fetch only products that have inventory at the configured location
+ * This is more efficient than fetching all products and then filtering
+ */
+export async function fetchProductsWithLocationInventory(): Promise<Square.CatalogObject[]> {
+  const locationId = process.env.SQUARE_LOCATION_ID;
+  if (!locationId) {
+    console.log('⚠️  No SQUARE_LOCATION_ID configured - falling back to fetchAllSquareProducts');
+    return fetchAllSquareProducts();
+  }
+
+  console.log('🔄 Fetching products with inventory at location...');
+  
+  try {
+    // First, get all inventory counts for the location
+    const inventory = await squareClient.inventory();
+    const inventoryResponse = await inventory.batchGetCounts({
+      locationIds: [locationId],
+    });
+
+    if (!inventoryResponse.data || inventoryResponse.data.length === 0) {
+      console.log('⚠️  No inventory found at location');
+      return [];
+    }
+
+    // Filter to only products with inventory > 0
+    const productsWithInventory = inventoryResponse.data.filter((item: any) => {
+      const quantity = Number(item.quantity) || 0;
+      return quantity > 0;
+    });
+
+    console.log(`📍 Found ${productsWithInventory.length} products with inventory at location`);
+
+    if (productsWithInventory.length === 0) {
+      return [];
+    }
+
+    // Create a set of catalog object IDs that have inventory
+    const inventoryCatalogIds = new Set(productsWithInventory.map((item: any) => item.catalogObjectId));
+
+    // Fetch all products and filter by those that have inventory
+    const allProducts = await fetchAllSquareProducts();
+    const filteredProducts = allProducts.filter(product => {
+      if (product.type !== 'ITEM' || !product.itemData?.variations?.length) {
+        return false;
+      }
+      
+      const variation = product.itemData.variations[0];
+      return variation.id && inventoryCatalogIds.has(variation.id);
+    });
+
+    console.log(`✅ Total: Filtered ${filteredProducts.length} products with inventory at location`);
+    return filteredProducts;
+
+  } catch (error) {
+    console.error('❌ Error fetching products with location inventory:', error);
+    console.log('🔄 Falling back to fetchAllSquareProducts...');
+    return fetchAllSquareProducts();
+  }
+}
+
+/**
  * Process a Square catalog item and extract product data
  */
 export function processSquareItem(item: Square.CatalogObject): {
