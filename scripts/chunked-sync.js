@@ -4,15 +4,27 @@ const BASE_URL = 'https://porch-records.fly.dev';
 const CHUNK_SIZE = 30; // Small chunks to complete quickly
 
 async function runChunkedSync() {
+  // Check for command line arguments
+  const args = process.argv.slice(2);
+  let startIndex = 0;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--startIndex' && args[i + 1]) {
+      startIndex = parseInt(args[i + 1]);
+      console.log(`🔄 Resuming sync from startIndex: ${startIndex}`);
+      break;
+    }
+  }
+
   console.log('🚀 Starting chunked sync...');
   console.log(`📦 Chunk size: ${CHUNK_SIZE} products`);
+  console.log(`📍 Starting from index: ${startIndex}`);
   console.log('');
 
-  let startIndex = 0;
   let totalSynced = 0;
   let totalSkipped = 0;
   let totalErrors = 0;
-  let chunkNumber = 1;
+  let chunkNumber = Math.floor(startIndex / CHUNK_SIZE) + 1;
 
   try {
     while (true) {
@@ -81,24 +93,6 @@ async function runChunkedSync() {
     console.log('💡 To continue from where it left off, run:');
     console.log(`   node scripts/chunked-sync.js --startIndex ${startIndex}`);
   }
-}
-
-// Check for command line arguments
-const args = process.argv.slice(2);
-let customStartIndex = 0;
-
-for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--startIndex' && args[i + 1]) {
-    customStartIndex = parseInt(args[i + 1]);
-    console.log(`🔄 Resuming sync from startIndex: ${customStartIndex}`);
-    break;
-  }
-}
-
-if (customStartIndex > 0) {
-  // Modify the script to start from custom index
-  console.log('⚠️  Note: Custom startIndex not yet implemented in this script');
-  console.log('   Please modify the script to use customStartIndex variable');
 }
 
 runChunkedSync();

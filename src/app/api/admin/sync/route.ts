@@ -98,8 +98,9 @@ export async function POST(request: NextRequest) {
       log.push('Pulling products from Square...');
       
       try {
-        // Step 1: Reset all products to not available at location (only on first chunk)
-        if (startIndex === 0) {
+        // Step 1: For chunked syncs, we don't reset - we only update what we process
+        // This preserves existing products and makes the sync truly incremental
+        if (startIndex === 0 && chunkSize >= 1000) { // Only reset for large chunks (full syncs)
           resetLocationAvailability();
         }
         
