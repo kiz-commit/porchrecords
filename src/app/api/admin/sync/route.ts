@@ -30,10 +30,65 @@ const updateSyncStatus = (lastSync: string, syncedCount: number = 0) => {
   }
 };
 
+// Helper function to sync a chunk of products
+const syncProductChunk = async (products: any[], startIndex: number, chunkSize: number) => {
+  const endIndex = Math.min(startIndex + chunkSize, products.length);
+  const chunk = products.slice(startIndex, endIndex);
+  
+  console.log(`🔄 Processing chunk ${startIndex + 1}-${endIndex} of ${products.length} products...`);
+  
+  let syncedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+  
+  // Collect variation IDs for this chunk
+  const variationIds = chunk.map(p => p.squareId);
+  
+  // Batch check inventory for this chunk
+  const inventoryResults = await batchCheckLocationInventory(variationIds);
+  
+  // Process each product in the chunk
+  for (const productData of chunk) {
+    try {
+      const inventoryData = inventoryResults.get(productData.squareId);
+      
+      if (!inventoryData || !inventoryData.hasInventory) {
+        console.log(`   ❌ Skipping ${productData.title}: No inventory at location`);
+        skippedCount++;
+        continue;
+      }
+
+      // Get existing admin fields to preserve
+      const adminFields = getAdminFields(productData.squareId);
+      
+      // Update product inventory (preserves admin fields)
+      const success = updateProductInventory(productData.squareId, {
+        stockQuantity: inventoryData.quantity,
+        stockStatus: inventoryData.stockStatus,
+        availableAtLocation: true
+      });
+
+      if (success) {
+        console.log(`   ✅ Synced ${productData.title}: ${inventoryData.quantity} units (${inventoryData.stockStatus})`);
+        syncedCount++;
+      } else {
+        console.log(`   ⚠️  Failed to update ${productData.title}`);
+        errorCount++;
+      }
+
+    } catch (error) {
+      console.error(`   ❌ Error updating product:`, error);
+      errorCount++;
+    }
+  }
+  
+  return { syncedCount, skippedCount, errorCount };
+};
+
 // POST - Incremental sync from Square to local database
 export async function POST(request: NextRequest) {
   try {
-    const { direction } = await request.json();
+    const { direction, chunkSize = 50, startIndex = 0 } = await request.json();
     const log: string[] = [];
     const now = new Date().toISOString();
 
@@ -43,8 +98,10 @@ export async function POST(request: NextRequest) {
       log.push('Pulling products from Square...');
       
       try {
-        // Step 1: Reset all products to not available at location
-        resetLocationAvailability();
+        // Step 1: Reset all products to not available at location (only on first chunk)
+        if (startIndex === 0) {
+          resetLocationAvailability();
+        }
         
         // Step 2: Fetch all products from Square
         const squareItems = await fetchAllSquareProducts();
@@ -63,10 +120,8 @@ export async function POST(request: NextRequest) {
 
         log.push(`✅ Fetched ${squareItems.length} items from Square`);
 
-        // Step 3: Process items and collect variation IDs for batch inventory check
+        // Step 3: Process items and collect valid products
         const validProducts: any[] = [];
-        const variationIds: string[] = [];
-        let syncedCount = 0;
         let skippedCount = 0;
         let errorCount = 0;
         
@@ -80,7 +135,6 @@ export async function POST(request: NextRequest) {
             }
             
             validProducts.push(productData);
-            variationIds.push(productData.squareId);
           } catch (error) {
             console.error(`   ❌ Error processing item:`, error);
             errorCount++;
@@ -89,58 +143,37 @@ export async function POST(request: NextRequest) {
         
         console.log(`📦 Processing ${validProducts.length} valid products...`);
         
-        // Step 4: Batch check inventory for all products
-        const inventoryResults = await batchCheckLocationInventory(variationIds);
+        // Step 4: Sync the specified chunk
+        const chunkResult = await syncProductChunk(validProducts, startIndex, chunkSize);
         
-        // Step 5: Update products with inventory data
-        for (const productData of validProducts) {
-          try {
-            const inventoryData = inventoryResults.get(productData.squareId);
-            
-            if (!inventoryData || !inventoryData.hasInventory) {
-              console.log(`   ❌ Skipping ${productData.title}: No inventory at location`);
-              skippedCount++;
-              continue;
-            }
-
-            // Get existing admin fields to preserve
-            const adminFields = getAdminFields(productData.squareId);
-            
-            // Update product inventory (preserves admin fields)
-            const success = updateProductInventory(productData.squareId, {
-              stockQuantity: inventoryData.quantity,
-              stockStatus: inventoryData.stockStatus,
-              availableAtLocation: true
-            });
-
-            if (success) {
-              console.log(`   ✅ Synced ${productData.title}: ${inventoryData.quantity} units (${inventoryData.stockStatus})`);
-              syncedCount++;
-            } else {
-              console.log(`   ⚠️  Failed to update ${productData.title}`);
-              errorCount++;
-            }
-
-          } catch (error) {
-            console.error(`   ❌ Error updating product:`, error);
-            errorCount++;
-          }
-        }
-
-        // Step 4: Update sync status
-        updateSyncStatus(now, syncedCount);
+        // Step 5: Update sync status
+        updateSyncStatus(now, chunkResult.syncedCount);
         
-        // Step 5: Invalidate cache
+        // Step 6: Invalidate cache
         invalidateProductsCache('sync completion');
 
-        log.push(`🎉 Sync completed! Synced: ${syncedCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`);
+        const totalProcessed = startIndex + chunkResult.syncedCount + chunkResult.skippedCount;
+        const isComplete = totalProcessed >= validProducts.length;
+        
+        log.push(`🎉 Chunk completed! Synced: ${chunkResult.syncedCount}, Skipped: ${chunkResult.skippedCount}, Errors: ${chunkResult.errorCount}`);
+        log.push(`📊 Progress: ${totalProcessed}/${validProducts.length} products processed`);
+        
+        if (isComplete) {
+          log.push(`✅ Full sync completed!`);
+        } else {
+          log.push(`⏭️  Next chunk: startIndex=${startIndex + chunkSize}, chunkSize=${chunkSize}`);
+        }
 
         return NextResponse.json({
           success: true,
-          syncedCount,
-          skippedCount,
-          errorCount,
-          message: `Successfully synced ${syncedCount} products from Square`,
+          syncedCount: chunkResult.syncedCount,
+          skippedCount: chunkResult.skippedCount,
+          errorCount: chunkResult.errorCount,
+          totalProcessed,
+          totalProducts: validProducts.length,
+          isComplete,
+          nextChunk: isComplete ? null : { startIndex: startIndex + chunkSize, chunkSize },
+          message: `Successfully synced ${chunkResult.syncedCount} products from Square`,
           log
         });
 
