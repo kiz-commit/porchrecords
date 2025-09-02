@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
   
-  // Check for concurrent sync operations
-  const lockFile = path.join(process.cwd(), 'data', 'sync.lock');
+  // Check for concurrent sync operations - use /tmp for write permissions
+  const lockFile = path.join('/tmp', 'sync.lock');
   
   if (fs.existsSync(lockFile)) {
     const lockTime = fs.statSync(lockFile).mtime;
