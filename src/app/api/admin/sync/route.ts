@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchProductsFromSquare } from '@/lib/square-inventory-utils';
-import { getAdminFields, updateProductInventory, upsertProductFromSquare, getSquareInventoryData } from '@/lib/product-database-utils';
+import { fetchProductsFromSquareWithRateLimit } from '@/lib/square-api-service';
+import { getAdminFields, updateProductInventory, upsertProductFromSquare } from '@/lib/product-database-utils';
 import { invalidateProductsCache } from '@/lib/cache-utils';
 import { generateSlug } from '@/lib/slug-utils';
 import Database from 'better-sqlite3';
@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
       log.push('Pulling products from Square...');
       
       try {
-        // Fetch products with inventory at our location using the shared function
-        const squareProducts = await fetchProductsFromSquare();
+        // Fetch products with inventory at our location using the rate-limited service
+        const squareProducts = await fetchProductsFromSquareWithRateLimit();
         
         if (squareProducts.length === 0) {
           log.push('⚠️  No items returned from Square API');
