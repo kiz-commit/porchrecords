@@ -33,6 +33,16 @@ const updateSyncStatus = (lastSync: string, syncedCount: number = 0) => {
 
 // POST - Simplified sync from Square to local database (for admin use)
 export async function POST(request: NextRequest) {
+  // TEMPORARY: Disable sync to fix performance issues
+  return NextResponse.json({
+    success: false,
+    error: 'Sync temporarily disabled due to performance issues',
+    syncedCount: 0,
+    skippedCount: 0,
+    errorCount: 0,
+    log: ['⚠️ Sync temporarily disabled to fix performance issues']
+  }, { status: 503 });
+  
   try {
     const { direction } = await request.json();
     const log: string[] = [];
