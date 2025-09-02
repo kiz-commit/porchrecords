@@ -73,7 +73,23 @@ export async function POST(request: NextRequest) {
     log.push('📡 Fetching products from Square with proper image handling...');
     console.log('📡 Fetching products from Square with proper image handling...');
     
-    const squareProducts = await fetchProductsFromSquareWithRateLimit();
+    let squareProducts;
+    try {
+      squareProducts = await fetchProductsFromSquareWithRateLimit();
+    } catch (fetchError: any) {
+      const errorMsg = fetchError?.message || String(fetchError);
+      log.push(`❌ Failed to fetch products from Square: ${errorMsg}`);
+      console.error('❌ Square API fetch error:', fetchError);
+      
+      // Check if it's a JSON parsing error
+      if (errorMsg.includes('JSON') || errorMsg.includes('json') || errorMsg.includes('SyntaxError')) {
+        log.push('🔍 This appears to be a JSON parsing error from Square API');
+        log.push('💡 This usually means Square returned an empty or malformed response');
+        log.push('🔄 Try running the sync again in a few minutes');
+      }
+      
+      throw new Error(`Square API error: ${errorMsg}`);
+    }
     
     log.push(`📊 Found ${squareProducts.length} products from Square`);
     console.log(`📊 Found ${squareProducts.length} products from Square`);
