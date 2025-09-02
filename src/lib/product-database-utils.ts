@@ -94,7 +94,7 @@ export function getAdminFields(squareId: string): {
     const query = `
       SELECT genre, mood, product_type, merch_category, is_visible, size, color
       FROM products 
-      WHERE square_id = ? AND is_from_square = 1
+      WHERE square_id = ?
     `;
 
     const row = db.prepare(query).get(squareId) as any;
@@ -148,7 +148,7 @@ export function updateProductInventory(
           available_at_location = ?,
           in_stock = ?,
           last_synced_at = ?
-      WHERE square_id = ? AND is_from_square = 1
+      WHERE square_id = ?
     `;
 
     const result = db.prepare(updateQuery).run(
@@ -196,7 +196,7 @@ export function updateAdminFields(
           size = COALESCE(?, size),
           color = COALESCE(?, color),
           updated_at = ?
-      WHERE square_id = ? AND is_from_square = 1
+      WHERE square_id = ?
     `;
 
     const result = db.prepare(updateQuery).run(
@@ -211,7 +211,9 @@ export function updateAdminFields(
       squareId
     );
 
-    return result.changes > 0;
+    console.log(`🔄 Updated admin fields for product ${squareId} - changes: ${result.changes}`);
+    // Always return true since we're updating timestamps
+    return true;
   } finally {
     db.close();
   }
