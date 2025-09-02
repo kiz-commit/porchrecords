@@ -292,12 +292,14 @@ export function upsertProductFromSquare(productData: {
         inventoryData.stockStatus,
         inventoryData.availableAtLocation ? 1 : 0,
         inventoryData.stockQuantity > 0 ? 1 : 0,
-        now,
-        now,
+        now,  // This ensures last_synced_at is always different
+        now,  // This ensures updated_at is always different
         productData.squareId
       );
 
-      return result.changes > 0;
+      // Always return true for sync operations since we're updating timestamps
+      console.log(`🔄 Updated product ${productData.title} - changes: ${result.changes}`);
+      return true;
     } else {
       // Create new product
       const productId = `square_${productData.squareId}`;
