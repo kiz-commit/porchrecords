@@ -125,10 +125,10 @@ export async function POST(request: NextRequest) {
         
         if (success) {
           syncedCount++;
-          console.log(`✅ Synced: ${product.title}`);
+          console.log(`✅ Synced: ${product.title} - Updated with new image: ${product.image}`);
         } else {
           skippedCount++;
-          console.log(`⏭️ Skipped: ${product.title}`);
+          console.log(`⏭️ Skipped: ${product.title} - No changes needed (image: ${product.image})`);
         }
       } catch (productError: any) {
         errorCount++;

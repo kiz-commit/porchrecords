@@ -259,6 +259,7 @@ export function upsertProductFromSquare(productData: {
     
     if (existingProduct) {
       // Update existing product with new data and inventory
+      // Force update by always changing the last_synced_at timestamp
       const updateQuery = `
         UPDATE products 
         SET title = ?, 
@@ -275,7 +276,7 @@ export function upsertProductFromSquare(productData: {
             in_stock = ?,
             last_synced_at = ?,
             updated_at = ?
-        WHERE square_id = ? AND is_from_square = 1
+        WHERE square_id = ?
       `;
 
       const result = db.prepare(updateQuery).run(
