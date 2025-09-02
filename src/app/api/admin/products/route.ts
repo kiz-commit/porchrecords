@@ -5,23 +5,32 @@ import { Square } from 'square';
 import { withAdminAuth } from '@/lib/route-protection';
 import { invalidateProductsCache } from '@/lib/cache-utils';
 import Database from 'better-sqlite3';
-
-
-
+import { fetchProductsFromSquare } from '@/lib/square-inventory-utils';
 import { getProductsByLocation } from '@/lib/product-database-utils';
 
-// GET - Fetch all products from database (protected with admin auth)
+// GET - Fetch all products from Square (protected with admin auth)
 async function getHandler(request: NextRequest) {
   try {
-    // Get all products available at the configured location (including hidden for admin)
-    const products = getProductsByLocation(true); // includeHidden = true for admin
+    // Use the shared function to fetch from Square - same as inventory endpoint
+    // This ensures consistency between admin/products and admin/inventory pages
+    const products = await fetchProductsFromSquare();
 
-    console.log(`📊 Admin: Showing ${products.length} products from database`);
+    console.log(`📊 Admin: Showing ${products.length} products from Square (same as inventory)`);
     
     return NextResponse.json({ products });
   } catch (error) {
-    console.error('Error fetching products from database:', error);
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+    console.error('Error fetching products from Square:', error);
+    
+    // Fallback to database if Square fetch fails
+    console.log('⚠️ Falling back to database products');
+    try {
+      const products = getProductsByLocation(true); // includeHidden = true for admin
+      console.log(`📊 Admin: Fallback showing ${products.length} products from database`);
+      return NextResponse.json({ products });
+    } catch (dbError) {
+      console.error('Error fetching products from database fallback:', dbError);
+      return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+    }
   }
 }
 

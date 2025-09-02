@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchProductsWithLocationInventory, processSquareItem } from '@/lib/square-inventory-utils';
+import { fetchProductsFromSquare } from '@/lib/square-inventory-utils';
 import { getAdminFields, updateProductInventory, upsertProductFromSquare, getSquareInventoryData } from '@/lib/product-database-utils';
 import { invalidateProductsCache } from '@/lib/cache-utils';
+import { generateSlug } from '@/lib/slug-utils';
 import Database from 'better-sqlite3';
 import path from 'path';
 
@@ -43,10 +44,10 @@ export async function POST(request: NextRequest) {
       log.push('Pulling products from Square...');
       
       try {
-        // Fetch products with inventory at our location
-        const squareItems = await fetchProductsWithLocationInventory();
+        // Fetch products with inventory at our location using the shared function
+        const squareProducts = await fetchProductsFromSquare();
         
-        if (squareItems.length === 0) {
+        if (squareProducts.length === 0) {
           log.push('⚠️  No items returned from Square API');
           return NextResponse.json({
             success: true,
@@ -58,24 +59,34 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        log.push(`✅ Fetched ${squareItems.length} items from Square`);
+        log.push(`✅ Fetched ${squareProducts.length} items from Square`);
 
         // Process items and update database
         let syncedCount = 0;
         let skippedCount = 0;
         let errorCount = 0;
         
-        for (const item of squareItems) {
+        for (const product of squareProducts) {
           try {
-            // Process the Square item (now async to fetch images)
-            const productData = await processSquareItem(item);
-            if (!productData) {
-              skippedCount++;
-              continue;
-            }
+            // Convert the already processed product to the format needed for database insertion
+            const productData = {
+              squareId: product.id,
+              title: product.title,
+              price: product.price,
+              description: product.description,
+              image: product.image,
+              artist: product.artist,
+              imageIds: product.imageIds || [],
+              images: product.images || [],
+              slug: generateSlug(product.title)
+            };
             
-            // Get inventory data from Square
-            const inventoryData = await getSquareInventoryData(productData.squareId);
+            // Inventory data is already included in the product from fetchProductsFromSquare
+            const inventoryData = {
+              stockQuantity: product.stockQuantity,
+              stockStatus: product.stockStatus,
+              availableAtLocation: true // Products from fetchProductsFromSquare are already filtered by location
+            };
             
             // Create or update product in database with both product and inventory data
             const success = upsertProductFromSquare(productData, inventoryData);
@@ -108,7 +119,7 @@ export async function POST(request: NextRequest) {
           skippedCount,
           errorCount,
           totalProcessed: syncedCount + skippedCount,
-          totalProducts: squareItems.length,
+          totalProducts: squareProducts.length,
           isComplete: true,
           nextChunk: null,
           message: `Successfully synced ${syncedCount} products from Square`,

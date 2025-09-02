@@ -1,309 +1,307 @@
 import squareClient from '@/lib/square';
 import { Square } from 'square';
+import { type StoreProduct } from '@/lib/types';
+import fs from 'fs';
+import path from 'path';
+import Database from 'better-sqlite3';
 
-/**
- * Check inventory for multiple products at once (batched to avoid rate limits)
- */
-export async function batchCheckLocationInventory(variationIds: string[]): Promise<Map<string, {
-  hasInventory: boolean;
-  quantity: number;
-  stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
-}>> {
-  const results = new Map();
-  
+// Helper function to determine stock status
+function getStockStatus(quantity: number): 'in_stock' | 'low_stock' | 'out_of_stock' {
+  if (quantity === 0) return 'out_of_stock';
+  if (quantity < 3) return 'low_stock';
+  return 'in_stock';
+}
+
+// Helper function to check if product has inventory at the configured location
+async function hasLocationInventory(variationId: string): Promise<boolean> {
   try {
     const locationId = process.env.SQUARE_LOCATION_ID;
     if (!locationId) {
-      console.log('   ⚠️  No SQUARE_LOCATION_ID configured - defaulting to include all products');
-      variationIds.forEach(id => {
-        results.set(id, { hasInventory: true, quantity: 0, stockStatus: 'in_stock' });
-      });
-      return results;
+      console.log('   ⚠️  No SQUARE_LOCATION_ID configured - defaulting to include product');
+      return true; // Default to include if no location configured
     }
 
-    // Process in batches of 10 to avoid rate limits
-    const batchSize = 10;
-    for (let i = 0; i < variationIds.length; i += batchSize) {
-      const batch = variationIds.slice(i, i + batchSize);
-      
-      try {
-        const inventory = await squareClient.inventory();
-        const inventoryResponse = await inventory.batchGetCounts({
-          locationIds: [locationId],
-          catalogObjectIds: batch,
-        });
-        
-        if (inventoryResponse && inventoryResponse.data) {
-          inventoryResponse.data.forEach((item: any) => {
-            const variationId = item.catalogObjectId;
-            const quantity = Number(item.quantity) || 0;
-            const stockStatus = quantity === 0 ? 'out_of_stock' : 
-                               quantity < 3 ? 'low_stock' : 'in_stock';
-            
-            results.set(variationId, { hasInventory: true, quantity, stockStatus });
-          });
-        }
-        
-        // Add missing items as not available
-        batch.forEach(id => {
-          if (!results.has(id)) {
-            results.set(id, { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' });
-          }
-        });
-        
-        console.log(`   📍 Batch ${Math.floor(i / batchSize) + 1}: Checked ${batch.length} products`);
-        
-        // Add delay between batches to avoid rate limits
-        if (i + batchSize < variationIds.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-        }
-        
-      } catch (error) {
-        console.error(`❌ Error checking batch inventory:`, error);
-        // Mark all items in this batch as not available on error
-        batch.forEach(id => {
-          results.set(id, { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' });
-        });
-        
-        // Wait longer on error before continuing
-        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-      }
-    }
-    
-    return results;
-  } catch (error) {
-    console.error('❌ Error in batch inventory check:', error);
-    // Return all as not available on error
-    variationIds.forEach(id => {
-      results.set(id, { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' });
-    });
-    return results;
-  }
-}
-
-/**
- * Check if a product has inventory at the configured location (single product - for backward compatibility)
- */
-export async function hasLocationInventory(variationId: string): Promise<{
-  hasInventory: boolean;
-  quantity: number;
-  stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
-}> {
-  const results = await batchCheckLocationInventory([variationId]);
-  return results.get(variationId) || { hasInventory: false, quantity: 0, stockStatus: 'out_of_stock' };
-}
-
-/**
- * Fetch all Square products with pagination
- */
-export async function fetchAllSquareProducts(): Promise<Square.CatalogObject[]> {
-  const allItems: Square.CatalogObject[] = [];
-  let cursor: string | undefined = undefined;
-  let pageCount = 0;
-  
-  console.log('🔄 Fetching all products from Square (with pagination)...');
-  
-  do {
-    pageCount++;
-    console.log(`   📄 Fetching page ${pageCount}...`);
-    
-    const searchRequest: any = { cursor };
-    const catalog = await squareClient.catalog();
-    const response = await catalog.searchItems(searchRequest);
-    
-    if (response.items && response.items.length > 0) {
-      allItems.push(...response.items);
-      console.log(`   ✅ Page ${pageCount}: ${response.items.length} items`);
-    }
-    
-    cursor = (response as any).cursor;
-  } while (cursor);
-
-  console.log(`✅ Total: Fetched ${allItems.length} items from Square across ${pageCount} pages`);
-  return allItems;
-}
-
-/**
- * Fetch only products that have inventory at the configured location
- * This is more efficient than fetching all products and then filtering
- */
-export async function fetchProductsWithLocationInventory(): Promise<Square.CatalogObject[]> {
-  const locationId = process.env.SQUARE_LOCATION_ID;
-  if (!locationId) {
-    console.log('⚠️  No SQUARE_LOCATION_ID configured - falling back to fetchAllSquareProducts');
-    return fetchAllSquareProducts();
-  }
-
-  console.log('🔄 Fetching products with inventory at location...');
-  
-  try {
-    // First, get all inventory counts for the location
+    // Check if this variation has inventory at the configured location
     const inventory = await squareClient.inventory();
     const inventoryResponse = await inventory.batchGetCounts({
       locationIds: [locationId],
+      catalogObjectIds: [variationId],
     });
-
-    if (!inventoryResponse.data || inventoryResponse.data.length === 0) {
-      console.log('⚠️  No inventory found at location');
-      return [];
+    
+    if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
+      const quantity = Number(inventoryResponse.data[0].quantity) || 0;
+      console.log(`   📍 Location inventory check for ${variationId}: ${quantity} units (INCLUDED - will show as sold out if 0)`);
+      return true; // Include product if it has an inventory record, regardless of quantity
     }
-
-    // Include all products that have inventory records at the location (including out of stock)
-    // This matches what Square's inventory management shows
-    const productsWithInventory = inventoryResponse.data;
-
-    console.log(`📍 Found ${productsWithInventory.length} products with inventory at location`);
-
-    if (productsWithInventory.length === 0) {
-      return [];
-    }
-
-    // Create a set of catalog object IDs that have inventory
-    const inventoryCatalogIds = new Set(productsWithInventory.map((item: any) => item.catalogObjectId));
-
-    // Fetch all products and filter by those that have inventory
-    const allProducts = await fetchAllSquareProducts();
-    const filteredProducts = allProducts.filter(product => {
-      if (product.type !== 'ITEM' || !product.itemData?.variations?.length) {
-        return false;
-      }
-      
-      const variation = product.itemData.variations[0];
-      return variation.id && inventoryCatalogIds.has(variation.id);
-    });
-
-    console.log(`✅ Total: Filtered ${filteredProducts.length} products with inventory at location`);
-    return filteredProducts;
-
+    
+    // If no inventory record found, exclude the product
+    console.log(`   📍 No inventory record found for ${variationId} at location ${locationId} - excluding product`);
+    return false;
   } catch (error) {
-    console.error('❌ Error fetching products with location inventory:', error);
-    console.log('🔄 Falling back to fetchAllSquareProducts...');
-    return fetchAllSquareProducts();
+    console.error('❌ Error checking location inventory:', error);
+    return false; // Default to exclude on error
   }
 }
 
-/**
- * Process a Square catalog item and extract product data
- */
-export async function processSquareItem(item: Square.CatalogObject): Promise<{
-  squareId: string;
-  title: string;
-  price: number;
-  description: string;
-  image: string;
-  artist: string;
-  imageIds: string[];
-  images: { id: string; url: string }[];
-  slug: string;
-} | null> {
+// Helper function to get product visibility from database
+function getProductVisibilityFromDatabase(squareId: string, title: string): boolean {
   try {
-    if (item.type !== 'ITEM' || !item.itemData?.variations?.length) {
-      return null;
+    const db = new Database('data/porchrecords.db');
+    
+    // Check if we have a record for this product
+    const getVisibility = db.prepare(`
+      SELECT is_visible FROM products 
+      WHERE square_id = ? OR id = ?
+    `);
+    
+    const result = getVisibility.get(squareId, `square_${squareId}`);
+    
+    db.close();
+    
+    if (result && typeof result === 'object' && 'is_visible' in result) {
+      return Boolean(result.is_visible);
     }
     
-    const itemData = item.itemData;
-    if (!itemData?.variations?.length) {
-      return null;
-    }
-    
-    const variation = itemData.variations[0];
-    if (variation.type !== 'ITEM_VARIATION' || !variation.id) {
-      return null;
-    }
-    
-    // Skip items without price (except vouchers)
-    const isVoucher = itemData.name?.toLowerCase().includes('voucher') || 
-                     itemData.description?.toLowerCase().includes('voucher');
-    
-    if (!variation.itemVariationData?.priceMoney && !isVoucher) {
-      return null;
-    }
-    
-    const price = variation.itemVariationData?.priceMoney?.amount 
-      ? Number(variation.itemVariationData.priceMoney.amount) / 100 
-      : 0;
-    
-    const title = itemData.name || 'No title';
-    const description = itemData.description || '';
-    const artist = 'Unknown Artist'; // Square doesn't have artist field
-    
-    // Process images - fetch actual URLs from Square
-    const imageIds: string[] = [];
-    const images: { id: string; url: string }[] = [];
-    
-    if (itemData.imageIds && itemData.imageIds.length > 0) {
-      imageIds.push(...itemData.imageIds);
-      
-      // Fetch actual image URLs from Square API
-      const squareClient = (await import('./square')).default;
-      const catalog = await squareClient.catalog();
-      
-      for (const imageId of itemData.imageIds) {
-        try {
-          const imageResponse = await catalog.object.get({ objectId: imageId });
-          if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
-            images.push({
-              id: imageId,
-              url: imageResponse.object.imageData.url || `https://square-catalog-production.s3.amazonaws.com/files/${imageId}`
-            });
-          } else {
-            // Fallback to CDN URL
-            images.push({
-              id: imageId,
-              url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}`
-            });
-          }
-        } catch (error) {
-          console.error(`❌ Error fetching image ${imageId}:`, error);
-          // Fallback to CDN URL
-          images.push({
-            id: imageId,
-            url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}`
-          });
-        }
-      }
-    }
-    
-    const mainImage = images.length > 0 ? images[0].url : '/store.webp';
-    
-    // Generate slug
-    const slug = generateSlug(title, artist);
-    
-    return {
-      squareId: variation.id,
-      title,
-      price,
-      description,
-      image: mainImage,
-      artist,
-      imageIds,
-      images,
-      slug
-    };
+    // If no database record, default to visible (true)
+    return true;
   } catch (error) {
-    console.error('❌ Error processing Square item:', error);
+    console.error('Error getting product visibility from database:', error);
+    // Default to visible on error
+    return true;
+  }
+}
+
+// Helper function to get preorder info from database
+function getPreorderInfoFromDatabase(productId: string): {
+  is_preorder: number;
+  preorder_release_date: string;
+  preorder_quantity: number;
+  preorder_max_quantity: number;
+} | null {
+  try {
+    const db = new Database('data/porchrecords.db');
+    const row = db
+      .prepare(
+        `SELECT is_preorder, preorder_release_date, preorder_quantity, preorder_max_quantity
+         FROM preorders WHERE product_id = ?`
+      )
+      .get(productId) as
+      | {
+          is_preorder: number;
+          preorder_release_date: string;
+          preorder_quantity: number;
+          preorder_max_quantity: number;
+        }
+      | undefined;
+    db.close();
+    return row || null;
+  } catch (error) {
+    console.error('Error getting preorder info from database:', error);
     return null;
   }
 }
 
 /**
- * Generate a URL-friendly slug from title and artist
+ * Fetch all products from Square with inventory data
+ * This is the shared logic used by both admin/inventory and admin/products endpoints
  */
-function generateSlug(title: string, artist: string): string {
-  const combined = `${title} ${artist}`;
-  return combined
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim();
-}
+export async function fetchProductsFromSquare(): Promise<(StoreProduct & { stockQuantity: number; stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' })[]> {
+  let inventoryProducts: (StoreProduct & { stockQuantity: number; stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' })[] = [];
+  
+  // Load local product data for additional fields
+  let localProductData: Record<string, any> = {};
+  try {
+    const merchCategoriesPath = path.join(process.cwd(), 'src', 'data', 'merchCategories.json');
+    if (fs.existsSync(merchCategoriesPath)) {
+      const data = fs.readFileSync(merchCategoriesPath, 'utf8');
+      localProductData = JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading local product data:', error);
+  }
+  
+  try {
+    // Fetch ALL products from Square with location filtering (handle pagination)
+    const locationId = process.env.SQUARE_LOCATION_ID;
+    let allItems: Square.CatalogObject[] = [];
+    let cursor: string | undefined = undefined;
+    do {
+      const searchRequest: any = locationId
+        ? { enabledLocationIds: [locationId], cursor }
+        : { cursor };
+      const catalog = await squareClient.catalog();
+      const resp = await catalog.searchItems(searchRequest);
+      if (resp.items) {
+        allItems.push(...resp.items);
+      }
+      cursor = (resp as any).cursor;
+    } while (cursor);
 
-/**
- * Get stock status based on quantity
- */
-export function getStockStatus(quantity: number): 'in_stock' | 'low_stock' | 'out_of_stock' {
-  if (quantity === 0) return 'out_of_stock';
-  if (quantity < 3) return 'low_stock';
-  return 'in_stock';
+    if (allItems.length > 0) {
+      const productsWithInventory = await Promise.all(allItems.map(async (item: Square.CatalogObject): Promise<(StoreProduct & { stockQuantity: number; stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' }) | null> => {
+        if (item.type !== 'ITEM' || !item.itemData?.variations?.length) {
+          return null;
+        }
+        
+        const variation = item.itemData.variations[0];
+        if (variation.type !== 'ITEM_VARIATION' || !variation.id) {
+          return null;
+        }
+        
+        // Special handling for voucher products - they don't have fixed prices
+        const isVoucher = item.itemData.name?.toLowerCase().includes('voucher') || 
+                         item.itemData.description?.toLowerCase().includes('voucher');
+        
+        // Check if variation has price (required for most products, but not vouchers)
+        if (!variation.itemVariationData?.priceMoney && !isVoucher) {
+          return null;
+        }
+
+        // TIER 1: Include items that are present at the location even if inventory tracking is disabled there
+        const locationId = process.env.SQUARE_LOCATION_ID;
+        const variationData = variation.itemVariationData || ({} as any);
+        const locationOverrides = (variationData.locationOverrides || []) as Array<{ locationId?: string; trackInventory?: boolean }>;
+        const hasInventoryTrackingDisabledAtLocation = !!locationId && (
+          variationData.trackInventory === false ||
+          locationOverrides.some(o => o && o.locationId === locationId && o.trackInventory === false)
+        );
+
+        // Skip inventory requirement for vouchers and for items with tracking disabled at this location
+        if (!isVoucher && !hasInventoryTrackingDisabledAtLocation) {
+          if (!await hasLocationInventory(variation.id)) {
+            console.log(`   ⚠️  No inventory record at configured location for ${item.itemData.name} - including in admin inventory as out-of-stock`);
+            // Continue; we'll set quantity to 0 below
+          }
+        } else if (isVoucher) {
+          console.log(`   🎫 Voucher product ${item.itemData.name} - skipping inventory check`);
+        } else if (hasInventoryTrackingDisabledAtLocation) {
+          console.log(`   ✅ Including ${item.itemData.name} - inventory tracking disabled at location ${locationId}`);
+        }
+
+        const price = isVoucher ? 0 : Number(variation.itemVariationData?.priceMoney?.amount || 0) / 100;
+        const imageIds = item.itemData.imageIds || [];
+        let images: { id: string; url: string }[] = [];
+        let image = '/store.webp';
+
+        if (imageIds.length > 0) {
+          images = await Promise.all(imageIds.map(async (imageId: string) => {
+            try {
+              const catalog = await squareClient.catalog();
+              const imageResponse = await catalog.object.get({ objectId: imageId });
+              if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
+                return { id: imageId, url: imageResponse.object.imageData.url || `/store.webp` };
+              } else {
+                return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
+              }
+            } catch (error) {
+              console.error('Error fetching image from Square:', error);
+              return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
+            }
+          }));
+          if (images.length > 0) {
+            image = images[0].url;
+          }
+        }
+
+        // Fetch inventory count for this variation using Square's inventory API
+        let stockQuantity = 0;
+        try {
+          const locationId = process.env.SQUARE_LOCATION_ID;
+          if (locationId) {
+            // Use Square's batchGetCounts method to get inventory counts
+            const inventory = await squareClient.inventory();
+            const inventoryResponse = await inventory.batchGetCounts({
+              locationIds: [locationId],
+              catalogObjectIds: [variation.id],
+            });
+            
+            // The response is a Page object, we need to access the data correctly
+            if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
+              stockQuantity = Number(inventoryResponse.data[0].quantity) || 0;
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching inventory for variation:', variation.id, error);
+          // If inventory tracking is not set up, default to a reasonable stock level
+          stockQuantity = 0;
+        }
+
+        const stockStatus = getStockStatus(stockQuantity);
+
+        // Parse visibility from description (legacy; visibility ultimately comes from DB)
+        const description = item.itemData.description || '';
+        const isHidden = description.includes('[HIDDEN FROM STORE]');
+
+        // Get preorder state from database instead of description flags
+        const preorderInfo = getPreorderInfoFromDatabase(variation.id);
+        const isPreorder = Boolean(preorderInfo?.is_preorder);
+
+        // Get local product data for this variation
+        const localData = localProductData[variation.id] || {};
+        
+        // Apply saved image order if available
+        if (localData.imageOrder && localData.imageOrder.length > 0) {
+          const orderedImages: { id: string; url: string }[] = [];
+          const unorderedImages = [...images];
+          
+          // First, add images in the saved order
+          for (const imageId of localData.imageOrder) {
+            const foundImage = unorderedImages.find(img => img.id === imageId);
+            if (foundImage) {
+              orderedImages.push(foundImage);
+              // Remove from unordered array to avoid duplicates
+              const index = unorderedImages.findIndex(img => img.id === imageId);
+              if (index > -1) {
+                unorderedImages.splice(index, 1);
+              }
+            }
+          }
+          
+          // Then add any remaining images that weren't in the saved order
+          orderedImages.push(...unorderedImages);
+          
+          images = orderedImages;
+          // Update the primary image to use the first image in the ordered list
+          if (images.length > 0) {
+            image = images[0].url;
+          }
+        }
+        
+        return {
+          id: variation.id,
+          title: item.itemData.name || 'No title',
+          price: price,
+          description: description.replace(/\[HIDDEN FROM STORE\]|\[PREORDER\]/g, '').trim(),
+          image: image,
+          images: images,
+          imageIds: localData.imageOrder && localData.imageOrder.length > 0 ? localData.imageOrder : item.itemData.imageIds || [],
+          inStock: stockQuantity > 0, // Legacy field for backward compatibility
+          stockQuantity: stockQuantity,
+          stockStatus: stockStatus,
+          artist: localData.artist || 'Unknown Artist',
+          genre: localData.genre || 'Uncategorized',
+          isPreorder: isPreorder,
+          isVisible: getProductVisibilityFromDatabase(variation.id, item.itemData.name || 'No title'), // Get visibility from database
+          productType: localData.productType || (isVoucher ? 'voucher' : 'record'),
+          merchCategory: localData.merchCategory || '',
+          size: localData.size || '',
+          color: localData.color || '',
+          preorderReleaseDate: preorderInfo?.preorder_release_date || localData.preorderReleaseDate || '',
+          preorderQuantity: preorderInfo?.preorder_quantity ?? localData.preorderQuantity ?? 0,
+          preorderMaxQuantity: preorderInfo?.preorder_max_quantity ?? localData.preorderMaxQuantity ?? 0,
+          mood: localData.mood || '',
+          isVariablePricing: localData.isVariablePricing || false,
+          minPrice: localData.minPrice,
+          maxPrice: localData.maxPrice
+        };
+      }));
+      
+      inventoryProducts = productsWithInventory.filter((p): p is (StoreProduct & { stockQuantity: number; stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' }) => p !== null);
+    }
+  } catch (error) {
+    console.error('Error fetching inventory from Square:', error);
+    throw error;
+  }
+
+  return inventoryProducts;
 }
