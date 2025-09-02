@@ -173,3 +173,63 @@ square_updated_at TEXT
 - Verify Square API permissions include inventory access
 - Determine if any existing admin data needs to be preserved before rebuild
 - Confirm acceptable downtime window for sync system rebuild
+
+### Phase 7: Chunked Sync Fix
+- [x] **Task 7.1**: Fix admin interface chunked sync
+  - Update admin sync page to use chunking parameters
+  - Implement automatic chunk continuation in admin interface
+  - Add progress tracking for chunked sync operations
+  - **Success Criteria**: Admin sync processes all chunks automatically
+
+- [x] **Task 7.2**: Add chunked sync to products page
+  - Update products page sync button to use chunking
+  - Show progress during chunked sync operations
+  - Handle sync completion and error states
+  - **Success Criteria**: Products page sync processes all products in chunks
+
+- [x] **Task 7.3**: Add chunked sync to admin dashboard
+  - Update admin dashboard refresh cache function to use chunking
+  - Ensure all admin sync operations process complete product sets
+  - **Success Criteria**: All admin sync operations process all chunks automatically
+
+### Phase 8: Hybrid Inventory Approach
+- [x] **Task 8.1**: Create public inventory API
+  - Create `/api/inventory/public` endpoint for store use
+  - Provide real-time inventory data from Square
+  - Filter by location and visibility
+  - **Success Criteria**: Public API provides accurate inventory data
+
+- [x] **Task 8.2**: Implement hybrid store products API
+  - Use Square inventory API for product availability (source of truth)
+  - Use database for admin-managed metadata (genre, mood, visibility, etc.)
+  - Merge both data sources for complete product information
+  - **Success Criteria**: Store shows correct products with all metadata
+
+### Phase 9: Sync System Simplification
+- [x] **Task 9.1**: Simplify sync logic
+  - Remove complex chunking logic from sync endpoints
+  - Simplify admin interfaces to use single sync calls
+  - Maintain admin data preservation during sync
+  - **Success Criteria**: Sync completes in one operation without chunking
+
+- [x] **Task 9.2**: Clean up old sync utilities
+  - Remove unused chunking functions
+  - Simplify sync progress tracking
+  - Update error handling for simplified sync
+  - **Success Criteria**: Clean, maintainable sync code
+
+## 🎯 Updated Architecture
+
+### Data Flow (Hybrid Approach)
+```
+Square Inventory API → Product Availability (what exists)
+Database → Admin Metadata (genre, mood, visibility, etc.)
+Store API → Merges both sources for complete product data
+```
+
+### Key Benefits
+1. **Real-time Inventory**: Square inventory API provides current stock levels
+2. **Admin Control**: Database preserves all admin-managed fields
+3. **No Sync Issues**: Eliminates complex sync problems
+4. **Single Source of Truth**: Square inventory API determines what products exist
+5. **Metadata Preservation**: Database maintains genre, mood, visibility, etc.

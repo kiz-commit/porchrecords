@@ -101,11 +101,24 @@ function getPreorderInfoFromDatabase(productId: string): {
   }
 }
 
+// Cache for products to avoid hitting Square API rate limits
+let productsCache: {
+  data: (StoreProduct & { stockQuantity: number; stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' })[];
+  timestamp: number;
+} | null = null;
+
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache
+
 /**
  * Fetch all products from Square with inventory data
  * This is the shared logic used by both admin/inventory and admin/products endpoints
  */
 export async function fetchProductsFromSquare(): Promise<(StoreProduct & { stockQuantity: number; stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' })[]> {
+  // Check if we have valid cached data
+  if (productsCache && (Date.now() - productsCache.timestamp) < CACHE_DURATION) {
+    console.log(`📊 Using cached products data (${productsCache.data.length} products)`);
+    return productsCache.data;
+  }
   let inventoryProducts: (StoreProduct & { stockQuantity: number; stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' })[] = [];
   
   // Load local product data for additional fields
@@ -302,6 +315,14 @@ export async function fetchProductsFromSquare(): Promise<(StoreProduct & { stock
     console.error('Error fetching inventory from Square:', error);
     throw error;
   }
+
+  // Cache the results
+  productsCache = {
+    data: inventoryProducts,
+    timestamp: Date.now()
+  };
+  
+  console.log(`📊 Cached ${inventoryProducts.length} products from Square`);
 
   return inventoryProducts;
 }

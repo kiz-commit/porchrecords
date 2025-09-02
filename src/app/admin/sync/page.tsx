@@ -11,6 +11,17 @@ interface SyncStatus {
   pendingChanges: number;
 }
 
+interface SyncProgress {
+  isRunning: boolean;
+  currentChunk: number;
+  totalChunks: number;
+  processed: number;
+  total: number;
+  synced: number;
+  skipped: number;
+  errors: number;
+}
+
 export default function AdminSync() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     lastSync: null,
@@ -21,6 +32,16 @@ export default function AdminSync() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [syncLog, setSyncLog] = useState<string[]>([]);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress>({
+    isRunning: false,
+    currentChunk: 0,
+    totalChunks: 0,
+    processed: 0,
+    total: 0,
+    synced: 0,
+    skipped: 0,
+    errors: 0,
+  });
 
   useEffect(() => {
     fetchSyncStatus();
@@ -38,9 +59,19 @@ export default function AdminSync() {
     }
   };
 
-  const performSync = async (direction: 'pull' | 'push' | 'both') => {
+  const performChunkedSync = async (direction: 'pull' | 'push' | 'both') => {
     setIsLoading(true);
     setSyncLog([]);
+    setSyncProgress({
+      isRunning: true,
+      currentChunk: 1,
+      totalChunks: 1,
+      processed: 0,
+      total: 0,
+      synced: 0,
+      skipped: 0,
+      errors: 0,
+    });
     
     try {
       const response = await fetch('/api/admin/sync', {
@@ -51,19 +82,72 @@ export default function AdminSync() {
         body: JSON.stringify({ direction }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setSyncLog(data.log || []);
-        await fetchSyncStatus();
-      } else {
+      if (!response.ok) {
         const error = await response.json();
-        setSyncLog([`Error: ${error.message}`]);
+        throw new Error(error.message || 'Sync failed');
       }
+
+      const data = await response.json();
+      
+      // Update progress
+      setSyncProgress(prev => ({
+        ...prev,
+        processed: data.totalProcessed || 0,
+        total: data.totalProducts || 0,
+        synced: data.syncedCount || 0,
+        skipped: data.skippedCount || 0,
+        errors: data.errorCount || 0,
+      }));
+
+      // Add log entries
+      if (data.log && Array.isArray(data.log)) {
+        setSyncLog(prev => [...prev, ...data.log]);
+      }
+
+      setSyncLog(prev => [...prev, `🎉 Sync completed! Total: ${data.syncedCount} synced, ${data.skippedCount} skipped, ${data.errorCount} errors`]);
+
+      await fetchSyncStatus();
     } catch (error) {
       console.error('Sync failed:', error);
-      setSyncLog([`Error: ${error}`]);
+      setSyncLog(prev => [...prev, `❌ Sync failed: ${error}`]);
     } finally {
       setIsLoading(false);
+      setSyncProgress(prev => ({ ...prev, isRunning: false }));
+    }
+  };
+
+  const performSync = async (direction: 'pull' | 'push' | 'both') => {
+    // Use chunked sync for pull operations
+    if (direction === 'pull' || direction === 'both') {
+      await performChunkedSync(direction);
+    } else {
+      // For push operations, use the old single-request method
+      setIsLoading(true);
+      setSyncLog([]);
+      
+      try {
+        const response = await fetch('/api/admin/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ direction }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSyncLog(data.log || []);
+          await fetchSyncStatus();
+        } else {
+          const error = await response.json();
+          setSyncLog([`Error: ${error.message}`]);
+        }
+      } catch (error) {
+        console.error('Sync failed:', error);
+        setSyncLog([`Error: ${error}`]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -135,6 +219,41 @@ export default function AdminSync() {
           </div>
         </div>
       </div>
+
+      {/* Sync Progress */}
+      {syncProgress.isRunning && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Sync Progress</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Progress</span>
+              <span className="text-sm text-gray-500">
+                Chunk {syncProgress.currentChunk} of {syncProgress.totalChunks}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${syncProgress.total > 0 ? (syncProgress.processed / syncProgress.total) * 100 : 0}%` }}
+              ></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold text-green-600">{syncProgress.synced}</p>
+                <p className="text-sm text-gray-500">Synced</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-yellow-600">{syncProgress.skipped}</p>
+                <p className="text-sm text-gray-500">Skipped</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-red-600">{syncProgress.errors}</p>
+                <p className="text-sm text-gray-500">Errors</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sync Actions */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">

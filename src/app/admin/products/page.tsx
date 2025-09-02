@@ -42,6 +42,8 @@ export default function AdminProducts() {
   const syncFromSquare = async () => {
     try {
       setIsSyncing(true);
+      
+      // Simple sync - no chunking needed
       const response = await fetch('/api/admin/sync', {
         method: 'POST',
         headers: {
@@ -50,14 +52,18 @@ export default function AdminProducts() {
         body: JSON.stringify({ direction: 'pull' }),
       });
       
-      if (response.ok) {
-        // Refresh the products list after sync
-        await fetchProducts();
-        // Reset to first page after sync
-        setCurrentPage(1);
-      } else {
-        console.error('Sync failed');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Sync failed');
       }
+
+      const data = await response.json();
+      console.log(`🎉 Sync completed! Total: ${data.syncedCount} synced, ${data.skippedCount} skipped, ${data.errorCount} errors`);
+      
+      // Refresh the products list after sync
+      await fetchProducts();
+      // Reset to first page after sync
+      setCurrentPage(1);
     } catch (error) {
       console.error('Sync failed:', error);
     } finally {

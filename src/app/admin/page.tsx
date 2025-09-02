@@ -67,18 +67,21 @@ export default function AdminDashboard() {
       setIsRefreshingCache(true);
       setRefreshMessage(null);
       
-      // 1) Run sync using the new unified sync endpoint
+      // 1) Run simplified sync using the unified sync endpoint
       const syncRes = await fetch('/api/admin/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ direction: 'pull' })
       });
+      
       let syncInfo: any = null;
       try { syncInfo = await syncRes.json(); } catch {}
       if (!syncRes.ok || syncInfo?.success === false) {
         setRefreshMessage(`Sync failed: ${syncInfo?.error || syncRes.statusText}`);
         return;
       }
+      
+      const totalSynced = syncInfo.syncedCount || 0;
 
       // 2) Invalidate all caches so store/admin reflect the latest DB
       const res = await fetch('/api/admin/cache/invalidate', {
@@ -91,8 +94,7 @@ export default function AdminDashboard() {
         setRefreshMessage(`Cache refresh failed: ${data?.error || res.statusText}`);
         return;
       }
-      const syncedCount = syncInfo?.syncedCount || 0;
-      setRefreshMessage(`Synced ${syncedCount} products and refreshed cache (${data?.message || 'all'}) at ${new Date().toLocaleTimeString()}`);
+      setRefreshMessage(`Synced ${totalSynced} products and refreshed cache (${data?.message || 'all'}) at ${new Date().toLocaleTimeString()}`);
       // Optionally reload quick stats after cache refresh
       // Trigger the same loader used on mount
       // Note: inventory endpoint is no-store, so this reflects latest

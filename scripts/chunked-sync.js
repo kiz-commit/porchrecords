@@ -30,54 +30,70 @@ async function runChunkedSync() {
     while (true) {
       console.log(`🔄 Processing chunk ${chunkNumber} (startIndex: ${startIndex})...`);
       
-      const response = await fetch(`${BASE_URL}/api/admin/sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          direction: 'pull',
-          chunkSize: CHUNK_SIZE,
-          startIndex: startIndex
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      // Add timeout to the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
       
-      if (!result.success) {
-        throw new Error(result.error || 'Sync failed');
+      try {
+        const response = await fetch(`${BASE_URL}/api/admin/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            direction: 'pull',
+            chunkSize: CHUNK_SIZE,
+            startIndex: startIndex
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Sync failed');
+        }
+
+        // Update totals
+        totalSynced += result.syncedCount;
+        totalSkipped += result.skippedCount;
+        totalErrors += result.errorCount;
+
+        console.log(`✅ Chunk ${chunkNumber} completed:`);
+        console.log(`   📊 Synced: ${result.syncedCount}, Skipped: ${result.skippedCount}, Errors: ${result.errorCount}`);
+        console.log(`   📈 Progress: ${result.totalProcessed}/${result.totalProducts} products processed`);
+        console.log(`   🎯 Total so far: ${totalSynced} synced, ${totalSkipped} skipped, ${totalErrors} errors`);
+        console.log('');
+
+        // Check if sync is complete
+        if (result.isComplete) {
+          console.log('🎉 Full sync completed!');
+          console.log(`📊 Final totals: ${totalSynced} synced, ${totalSkipped} skipped, ${totalErrors} errors`);
+          break;
+        }
+
+        // Prepare for next chunk
+        startIndex = result.nextChunk.startIndex;
+        chunkNumber++;
+
+        // Small delay between chunks to be nice to the API
+        console.log('⏳ Waiting 2 seconds before next chunk...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('');
+        
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out after 60 seconds');
+        }
+        throw fetchError;
       }
-
-      // Update totals
-      totalSynced += result.syncedCount;
-      totalSkipped += result.skippedCount;
-      totalErrors += result.errorCount;
-
-      console.log(`✅ Chunk ${chunkNumber} completed:`);
-      console.log(`   📊 Synced: ${result.syncedCount}, Skipped: ${result.skippedCount}, Errors: ${result.errorCount}`);
-      console.log(`   📈 Progress: ${result.totalProcessed}/${result.totalProducts} products processed`);
-      console.log(`   🎯 Total so far: ${totalSynced} synced, ${totalSkipped} skipped, ${totalErrors} errors`);
-      console.log('');
-
-      // Check if sync is complete
-      if (result.isComplete) {
-        console.log('🎉 Full sync completed!');
-        console.log(`📊 Final totals: ${totalSynced} synced, ${totalSkipped} skipped, ${totalErrors} errors`);
-        break;
-      }
-
-      // Prepare for next chunk
-      startIndex = result.nextChunk.startIndex;
-      chunkNumber++;
-
-      // Small delay between chunks to be nice to the API
-      console.log('⏳ Waiting 2 seconds before next chunk...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log('');
     }
 
   } catch (error) {

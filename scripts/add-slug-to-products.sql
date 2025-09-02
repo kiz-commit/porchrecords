@@ -8,3 +8,5 @@ CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug_unique ON products(slug) WHERE slug IS NOT NULL;
 
 
+
+
