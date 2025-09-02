@@ -9,7 +9,7 @@ const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
  */
 export function getProductsByLocation(
   includeHidden: boolean = false,
-  limit: number = 100,
+  limit: number = 1000,
   offset: number = 0
 ): StoreProduct[] {
   const db = new Database(DB_PATH);

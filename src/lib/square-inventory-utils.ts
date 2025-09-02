@@ -234,10 +234,10 @@ export function processSquareItem(item: Square.CatalogObject): {
     if (itemData.imageIds && itemData.imageIds.length > 0) {
       imageIds.push(...itemData.imageIds);
       
-      // For now, we'll use placeholder URLs - in production you'd fetch actual image URLs
+      // Use Square's CDN URLs for images
       images.push(...itemData.imageIds.map(id => ({
         id,
-        url: `/api/media/${id}` // Placeholder - would need actual image URL fetching
+        url: `https://square-catalog-production.s3.amazonaws.com/files/${id}`
       })));
     }
     
