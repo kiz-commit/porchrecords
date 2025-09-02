@@ -355,13 +355,21 @@ export async function fetchProductsFromSquareWithRateLimit(): Promise<(StoreProd
               }, `image fetch for ${imageId}`);
               
               if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
-                return { id: imageId, url: imageResponse.object.imageData.url || `/store.webp` };
+                const imageUrl = imageResponse.object.imageData.url;
+                if (imageUrl) {
+                  console.log(`✅ Got real image URL for ${imageId}: ${imageUrl}`);
+                  return { id: imageId, url: imageUrl };
+                } else {
+                  console.log(`⚠️ No URL in image data for ${imageId}, using fallback`);
+                  return { id: imageId, url: '/store.webp' };
+                }
               } else {
-                return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
+                console.log(`⚠️ Invalid image response for ${imageId}, using fallback`);
+                return { id: imageId, url: '/store.webp' };
               }
             } catch (error) {
-              console.error('Error fetching image from Square:', error);
-              return { id: imageId, url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}` };
+              console.error(`❌ Error fetching image ${imageId} from Square:`, error);
+              return { id: imageId, url: '/store.webp' };
             }
           }));
           if (images.length > 0) {

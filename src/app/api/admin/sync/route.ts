@@ -1,196 +1,161 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchProductsFromSquareWithRateLimit } from '@/lib/square-api-service';
-import { getAdminFields, updateProductInventory, upsertProductFromSquare } from '@/lib/product-database-utils';
-import { invalidateProductsCache } from '@/lib/cache-utils';
-import { generateSlug } from '@/lib/slug-utils';
 import Database from 'better-sqlite3';
 import path from 'path';
+import * as fs from 'fs';
 
-// Database path
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'data', 'porchrecords.db');
 
-// Database helper functions
-const getDatabase = () => {
-  return new Database(DB_PATH);
+// Helper function to ensure admin authentication
+const isAdminAuthenticated = (request: NextRequest): boolean => {
+  const adminCookie = request.cookies.get('admin_session');
+  return adminCookie?.value === process.env.ADMIN_SESSION_SECRET;
 };
 
-const updateSyncStatus = (lastSync: string, syncedCount: number = 0) => {
-  const db = getDatabase();
-  try {
-    db.prepare(`
-      INSERT OR REPLACE INTO site_config (config_key, config_value, updated_at)
-      VALUES ('last_sync', ?, ?)
-    `).run(lastSync, new Date().toISOString());
-    
-    db.prepare(`
-      INSERT OR REPLACE INTO site_config (config_key, config_value, updated_at)
-      VALUES ('last_sync_count', ?, ?)
-    `).run(syncedCount.toString(), new Date().toISOString());
-  } finally {
-    db.close();
+// Helper function to check if user is admin
+const checkAdminAuth = (request: NextRequest) => {
+  if (!isAdminAuthenticated(request)) {
+    throw new Error('Authentication required');
   }
 };
 
-// POST - Simplified sync from Square to local database (for admin use)
+// Helper function to generate a slug from title
+const generateSlug = (title: string): string => {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+};
+
+// POST - Manual sync from Square to local database (admin only)
 export async function POST(request: NextRequest) {
-  // TEMPORARY: Disable sync to fix performance issues
-  return NextResponse.json({
-    success: false,
-    error: 'Sync temporarily disabled due to performance issues',
-    syncedCount: 0,
-    skippedCount: 0,
-    errorCount: 0,
-    log: ['⚠️ Sync temporarily disabled to fix performance issues']
-  }, { status: 503 });
+  // Check admin authentication
+  try {
+    checkAdminAuth(request);
+  } catch (error) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  
+  // Check for concurrent sync operations
+  const lockFile = path.join(process.cwd(), 'data', 'sync.lock');
+  
+  if (fs.existsSync(lockFile)) {
+    const lockTime = fs.statSync(lockFile).mtime;
+    const timeDiff = Date.now() - lockTime.getTime();
+    
+    // If lock is older than 30 minutes, consider it stale
+    if (timeDiff < 30 * 60 * 1000) {
+      return NextResponse.json({
+        success: false,
+        error: 'Another sync operation is already in progress',
+        syncedCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        log: ['⚠️ Sync already in progress - please wait for completion']
+      }, { status: 409 });
+    }
+  }
+  
+  // Create sync lock
+  fs.writeFileSync(lockFile, new Date().toISOString());
   
   try {
-    const { direction } = await request.json();
     const log: string[] = [];
-    const now = new Date().toISOString();
-
-    log.push(`[${new Date().toLocaleString()}] Starting ${direction} sync...`);
-
-    if (direction === 'pull' || direction === 'both') {
-      log.push('Pulling products from Square...');
-      
+    
+    log.push('🔄 Starting manual sync operation...');
+    console.log('🔄 Starting manual sync operation...');
+    
+    // Use the improved sync function from square-api-service
+    const { fetchProductsFromSquareWithRateLimit } = await import('@/lib/square-api-service');
+    const { upsertProductFromSquare } = await import('@/lib/product-database-utils');
+    
+    log.push('📡 Fetching products from Square with proper image handling...');
+    console.log('📡 Fetching products from Square with proper image handling...');
+    
+    const squareProducts = await fetchProductsFromSquareWithRateLimit();
+    
+    log.push(`📊 Found ${squareProducts.length} products from Square`);
+    console.log(`📊 Found ${squareProducts.length} products from Square`);
+    
+    let syncedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    
+    for (const product of squareProducts) {
       try {
-        // Fetch products with inventory at our location using the rate-limited service
-        const squareProducts = await fetchProductsFromSquareWithRateLimit();
-        
-        if (squareProducts.length === 0) {
-          log.push('⚠️  No items returned from Square API');
-          return NextResponse.json({
-            success: true,
-            syncedCount: 0,
-            skippedCount: 0,
-            errorCount: 0,
-            message: 'No items to sync',
-            log
-          });
+        // Skip products without Square ID
+        if (!product.squareId) {
+          skippedCount++;
+          console.log(`⏭️ Skipped: ${product.title} (no Square ID)`);
+          continue;
         }
 
-        log.push(`✅ Fetched ${squareProducts.length} items from Square`);
-
-        // Process items and update database
-        let syncedCount = 0;
-        let skippedCount = 0;
-        let errorCount = 0;
-        
-        for (const product of squareProducts) {
-          try {
-            // Convert the already processed product to the format needed for database insertion
-            const productData = {
-              squareId: product.id,
-              title: product.title,
-              price: product.price,
-              description: product.description,
-              image: product.image,
-              artist: product.artist,
-              imageIds: product.imageIds || [],
-              images: product.images || [],
-              slug: generateSlug(product.title)
-            };
-            
-            // Inventory data is already included in the product from fetchProductsFromSquare
-            const inventoryData = {
-              stockQuantity: product.stockQuantity,
-              stockStatus: product.stockStatus,
-              availableAtLocation: true // Products from fetchProductsFromSquare are already filtered by location
-            };
-            
-            // Create or update product in database with both product and inventory data
-            const success = upsertProductFromSquare(productData, inventoryData);
-
-            if (success) {
-              console.log(`   ✅ Synced ${productData.title} (${inventoryData.stockQuantity} units) - ${productData.images.length} images`);
-              syncedCount++;
-            } else {
-              console.log(`   ⚠️  Failed to sync ${productData.title}`);
-              errorCount++;
-            }
-
-          } catch (error) {
-            console.error(`   ❌ Error processing item:`, error);
-            errorCount++;
-          }
-        }
-        
-        // Update sync status
-        updateSyncStatus(now, syncedCount);
-        
-        // Invalidate cache
-        invalidateProductsCache('sync completion');
-
-        log.push(`🎉 Sync completed! Synced: ${syncedCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`);
-
-        return NextResponse.json({
-          success: true,
-          syncedCount,
-          skippedCount,
-          errorCount,
-          totalProcessed: syncedCount + skippedCount,
-          totalProducts: squareProducts.length,
-          isComplete: true,
-          nextChunk: null,
-          message: `Successfully synced ${syncedCount} products from Square`,
-          log
+        const success = upsertProductFromSquare({
+          squareId: product.squareId,
+          title: product.title,
+          price: product.price,
+          description: product.description,
+          image: product.image,
+          artist: product.artist,
+          imageIds: product.imageIds || [],
+          images: product.images || [],
+          slug: product.slug || generateSlug(product.title)
+        }, {
+          stockQuantity: product.stockQuantity,
+          stockStatus: product.stockStatus,
+          availableAtLocation: true
         });
-
-      } catch (error: any) {
-        const errorMessage = error?.message || 'Unknown error';
-        console.error('❌ Sync error:', error);
-        log.push(`❌ Sync failed: ${errorMessage}`);
         
-        return NextResponse.json({
-          success: false,
-          error: errorMessage,
-          log
-        }, { status: 500 });
+        if (success) {
+          syncedCount++;
+          console.log(`✅ Synced: ${product.title}`);
+        } else {
+          skippedCount++;
+          console.log(`⏭️ Skipped: ${product.title}`);
+        }
+      } catch (productError: any) {
+        errorCount++;
+        const errorMsg = productError?.message || 'Unknown error';
+        log.push(`❌ Error syncing ${product.title}: ${errorMsg}`);
+        console.error(`❌ Error syncing ${product.title}:`, productError);
       }
     }
 
+    log.push(`🎉 Sync completed successfully!`);
+    log.push(`📊 Results: ${syncedCount} synced, ${skippedCount} skipped, ${errorCount} errors`);
+    
+    console.log(`🎉 Sync completed! ${syncedCount} synced, ${skippedCount} skipped, ${errorCount} errors`);
+    
+    // Clean up sync lock
+    if (fs.existsSync(lockFile)) {
+      fs.unlinkSync(lockFile);
+    }
+    
     return NextResponse.json({
       success: true,
-      message: 'Sync completed',
+      syncedCount,
+      skippedCount,
+      errorCount,
       log
     });
-
+    
   } catch (error: any) {
+    // Clean up sync lock on error
+    if (fs.existsSync(lockFile)) {
+      fs.unlinkSync(lockFile);
+    }
+    
     const errorMessage = error?.message || 'Unknown error';
-    console.error('❌ Request error:', error);
+    console.error('❌ Sync error:', error);
     
     return NextResponse.json({
       success: false,
-      error: errorMessage
+      error: errorMessage,
+      syncedCount: 0,
+      skippedCount: 0,
+      errorCount: 1,
+      log: [`❌ Sync failed: ${errorMessage}`]
     }, { status: 500 });
   }
 }
-
-// GET - Get sync status
-export async function GET() {
-  try {
-    const db = getDatabase();
-    
-    try {
-      const lastSync = db.prepare('SELECT config_value FROM site_config WHERE config_key = ?').get('last_sync') as any;
-      const lastSyncCount = db.prepare('SELECT config_value FROM site_config WHERE config_key = ?').get('last_sync_count') as any;
-      
-      return NextResponse.json({
-        success: true,
-        lastSync: lastSync?.config_value || null,
-        lastSyncCount: lastSyncCount ? parseInt(lastSyncCount.config_value) : 0,
-        locationId: process.env.SQUARE_LOCATION_ID || 'Not configured'
-      });
-    } finally {
-      db.close();
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('❌ Error getting sync status:', error);
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage
-    }, { status: 500 });
-  }
-} 
