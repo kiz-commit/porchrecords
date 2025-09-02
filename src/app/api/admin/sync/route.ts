@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
         
         for (const item of squareItems) {
           try {
-            // Process the Square item
-            const productData = processSquareItem(item);
+            // Process the Square item (now async to fetch images)
+            const productData = await processSquareItem(item);
             if (!productData) {
               skippedCount++;
               continue;
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
             const success = upsertProductFromSquare(productData, inventoryData);
 
             if (success) {
-              console.log(`   ✅ Synced ${productData.title} (${inventoryData.stockQuantity} units)`);
+              console.log(`   ✅ Synced ${productData.title} (${inventoryData.stockQuantity} units) - ${productData.images.length} images`);
               syncedCount++;
             } else {
               console.log(`   ⚠️  Failed to sync ${productData.title}`);

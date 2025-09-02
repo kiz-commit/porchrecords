@@ -185,7 +185,7 @@ export async function fetchProductsWithLocationInventory(): Promise<Square.Catal
 /**
  * Process a Square catalog item and extract product data
  */
-export function processSquareItem(item: Square.CatalogObject): {
+export async function processSquareItem(item: Square.CatalogObject): Promise<{
   squareId: string;
   title: string;
   price: number;
@@ -195,7 +195,7 @@ export function processSquareItem(item: Square.CatalogObject): {
   imageIds: string[];
   images: { id: string; url: string }[];
   slug: string;
-} | null {
+} | null> {
   try {
     if (item.type !== 'ITEM' || !item.itemData?.variations?.length) {
       return null;
@@ -227,18 +227,41 @@ export function processSquareItem(item: Square.CatalogObject): {
     const description = itemData.description || '';
     const artist = 'Unknown Artist'; // Square doesn't have artist field
     
-    // Process images
+    // Process images - fetch actual URLs from Square
     const imageIds: string[] = [];
     const images: { id: string; url: string }[] = [];
     
     if (itemData.imageIds && itemData.imageIds.length > 0) {
       imageIds.push(...itemData.imageIds);
       
-      // Use Square's CDN URLs for images
-      images.push(...itemData.imageIds.map(id => ({
-        id,
-        url: `https://square-catalog-production.s3.amazonaws.com/files/${id}`
-      })));
+      // Fetch actual image URLs from Square API
+      const squareClient = (await import('./square')).default;
+      const catalog = await squareClient.catalog();
+      
+      for (const imageId of itemData.imageIds) {
+        try {
+          const imageResponse = await catalog.object.get({ objectId: imageId });
+          if (imageResponse.object && imageResponse.object.type === 'IMAGE' && imageResponse.object.imageData) {
+            images.push({
+              id: imageId,
+              url: imageResponse.object.imageData.url || `https://square-catalog-production.s3.amazonaws.com/files/${imageId}`
+            });
+          } else {
+            // Fallback to CDN URL
+            images.push({
+              id: imageId,
+              url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}`
+            });
+          }
+        } catch (error) {
+          console.error(`❌ Error fetching image ${imageId}:`, error);
+          // Fallback to CDN URL
+          images.push({
+            id: imageId,
+            url: `https://square-catalog-production.s3.amazonaws.com/files/${imageId}`
+          });
+        }
+      }
     }
     
     const mainImage = images.length > 0 ? images[0].url : '/store.webp';
