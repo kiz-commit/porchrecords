@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { StoreProduct } from '@/lib/types';
+import { generateSlug } from '@/lib/slug-utils';
 
 const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
 
@@ -227,5 +228,153 @@ export function resetLocationAvailability(): void {
     db.prepare('UPDATE products SET available_at_location = 0 WHERE is_from_square = 1').run();
   } finally {
     db.close();
+  }
+}
+
+/**
+ * Create or update a product from Square data (upsert operation)
+ */
+export function upsertProductFromSquare(productData: {
+  squareId: string;
+  title: string;
+  price: number;
+  description: string;
+  image: string;
+  artist: string;
+  imageIds: string[];
+  images: { id: string; url: string }[];
+  slug: string;
+}, inventoryData: {
+  stockQuantity: number;
+  stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
+  availableAtLocation: boolean;
+}): boolean {
+  const db = new Database(DB_PATH);
+  
+  try {
+    const now = new Date().toISOString();
+    
+    // Check if product already exists
+    const existingProduct = db.prepare('SELECT id FROM products WHERE square_id = ?').get(productData.squareId);
+    
+    if (existingProduct) {
+      // Update existing product with new data and inventory
+      const updateQuery = `
+        UPDATE products 
+        SET title = ?, 
+            price = ?, 
+            description = ?, 
+            image = ?, 
+            artist = ?, 
+            image_ids = ?, 
+            images = ?, 
+            slug = ?,
+            stock_quantity = ?, 
+            stock_status = ?, 
+            available_at_location = ?,
+            in_stock = ?,
+            last_synced_at = ?,
+            updated_at = ?
+        WHERE square_id = ? AND is_from_square = 1
+      `;
+
+      const result = db.prepare(updateQuery).run(
+        productData.title,
+        productData.price,
+        productData.description,
+        productData.image,
+        productData.artist,
+        JSON.stringify(productData.imageIds),
+        JSON.stringify(productData.images),
+        productData.slug,
+        inventoryData.stockQuantity,
+        inventoryData.stockStatus,
+        inventoryData.availableAtLocation ? 1 : 0,
+        inventoryData.stockQuantity > 0 ? 1 : 0,
+        now,
+        now,
+        productData.squareId
+      );
+
+      return result.changes > 0;
+    } else {
+      // Create new product
+      const productId = `square_${productData.squareId}`;
+      
+      const insertQuery = `
+        INSERT INTO products (
+          id, title, price, description, image, artist, genre, 
+          is_preorder, square_id, is_from_square, is_visible, 
+          stock_quantity, stock_status, product_type, updated_at, 
+          created_at, last_synced_at, image_ids, images, slug,
+          available_at_location, in_stock
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      const result = db.prepare(insertQuery).run(
+        productId,
+        productData.title,
+        productData.price,
+        productData.description,
+        productData.image,
+        productData.artist,
+        'Uncategorized', // default genre
+        0, // is_preorder
+        productData.squareId,
+        1, // is_from_square
+        1, // is_visible (default to visible)
+        inventoryData.stockQuantity,
+        inventoryData.stockStatus,
+        'record', // default product_type
+        now, // updated_at
+        now, // created_at
+        now, // last_synced_at
+        JSON.stringify(productData.imageIds),
+        JSON.stringify(productData.images),
+        productData.slug,
+        inventoryData.availableAtLocation ? 1 : 0,
+        inventoryData.stockQuantity > 0 ? 1 : 0
+      );
+
+      return result.changes > 0;
+    }
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Get inventory data for a product from Square
+ */
+export async function getSquareInventoryData(squareId: string): Promise<{
+  stockQuantity: number;
+  stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
+  availableAtLocation: boolean;
+}> {
+  try {
+    const locationId = process.env.SQUARE_LOCATION_ID;
+    if (!locationId) {
+      return { stockQuantity: 0, stockStatus: 'in_stock', availableAtLocation: true };
+    }
+
+    const squareClient = (await import('@/lib/square')).default;
+    const inventory = await squareClient.inventory();
+    const inventoryResponse = await inventory.batchGetCounts({
+      locationIds: [locationId],
+      catalogObjectIds: [squareId],
+    });
+
+    if (inventoryResponse && inventoryResponse.data && inventoryResponse.data.length > 0) {
+      const quantity = Number(inventoryResponse.data[0].quantity) || 0;
+      const stockStatus = quantity === 0 ? 'out_of_stock' : 
+                         quantity < 3 ? 'low_stock' : 'in_stock';
+      
+      return { stockQuantity: quantity, stockStatus, availableAtLocation: true };
+    }
+    
+    return { stockQuantity: 0, stockStatus: 'out_of_stock', availableAtLocation: false };
+  } catch (error) {
+    console.error('❌ Error fetching inventory for variation:', squareId, error);
+    return { stockQuantity: 0, stockStatus: 'out_of_stock', availableAtLocation: false };
   }
 }
