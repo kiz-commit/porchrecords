@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
         });
 
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('❌ Sync error:', error);
         log.push(`❌ Sync failed: ${errorMessage}`);
         
