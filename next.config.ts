@@ -96,6 +96,7 @@ const nextConfig: NextConfig = {
       "script-src 'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://web.squarecdn.com",
       "style-src 'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://web.squarecdn.com",
       "img-src 'self' data: https:",
+      "font-src 'self' https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net",
       "connect-src 'self' https://connect.squareup.com https://api.squareup.com https://connect.squareupsandbox.com https://pci-connect.squareup.com https://pci-connect.squareupsandbox.com https://o160250.ingest.sentry.io",
       "frame-src https://sandbox.web.squarecdn.com https://web.squarecdn.com",
       "object-src 'none'",
