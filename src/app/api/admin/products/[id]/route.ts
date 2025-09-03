@@ -338,6 +338,40 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
     console.log('🔄 PATCH: Updating product with ID:', id);
     console.log('🔄 PATCH: Product data:', productData);
     
+    // First, find the product to get the correct square_id
+    const DB_PATH = process.env.DB_PATH || 'data/porchrecords.db';
+    const db = new Database(DB_PATH);
+    let localProduct: any = null;
+    
+    try {
+      console.log('🔍 PATCH: Looking for product in database with ID:', id);
+      console.log('🔍 PATCH: Trying lookup with:', [id, id, `square_${id}`, `square_${id}`]);
+      // Try multiple ways to find the product (same logic as GET)
+      localProduct = db.prepare(`
+        SELECT * FROM products 
+        WHERE id = ? OR square_id = ? OR id = ? OR square_id = ?
+      `).get(id, id, `square_${id}`, `square_${id}`);
+      console.log('🔍 PATCH: Database lookup result:', localProduct ? 'Found' : 'Not found');
+      if (localProduct) {
+        console.log('🔍 PATCH: Found product:', {
+          id: localProduct.id,
+          square_id: localProduct.square_id,
+          genre: localProduct.genre,
+          mood: localProduct.mood
+        });
+      } else {
+        console.log('🔍 PATCH: No product found in database');
+      }
+    } catch (error) {
+      console.error('🔍 PATCH: Database lookup error:', error);
+    } finally {
+      db.close();
+    }
+
+    if (!localProduct) {
+      return NextResponse.json({ error: 'Product not found in local database' }, { status: 404 });
+    }
+
     // Extract admin-managed fields from request
     const adminFields = {
       genre: productData.genre,
@@ -349,11 +383,11 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
       color: productData.color
     };
     
-    // Update admin fields in database (preserves other fields)
-    const success = updateAdminFields(id, adminFields);
+    // Update admin fields in database using the correct square_id
+    const success = updateAdminFields(localProduct.square_id, adminFields);
     
     if (!success) {
-      return NextResponse.json({ error: 'Product not found in local database' }, { status: 404 });
+      return NextResponse.json({ error: 'Failed to update product in database' }, { status: 500 });
     }
     
     console.log('✅ PATCH: Successfully updated admin fields for product:', id);
