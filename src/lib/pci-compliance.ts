@@ -49,9 +49,9 @@ export function getSecurityHeaders(): Record<string, string> {
     'Content-Security-Policy': [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://web.squarecdn.com",
-      "style-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://web.squarecdn.com",
       "img-src 'self' data: https:",
-      "connect-src 'self' https://connect.squareup.com https://api.squareup.com",
+      "connect-src 'self' https://connect.squareup.com https://api.squareup.com https://connect.squareupsandbox.com https://pci-connect.squareup.com https://pci-connect.squareupsandbox.com https://o160250.ingest.sentry.io",
       "frame-src https://sandbox.web.squarecdn.com https://web.squarecdn.com",
       "object-src 'none'",
       "base-uri 'self'",
