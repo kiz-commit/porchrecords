@@ -16,7 +16,7 @@ const loadData = () => {
   try {
     const db = new Database('data/porchrecords.db', { readonly: true });
 
-    // Products
+    // Products - only include visible, Square-sourced products available at location
     const productRows = db.prepare(`
       SELECT 
         id,
@@ -28,7 +28,9 @@ const loadData = () => {
         product_type AS productType,
         slug
       FROM products
-      WHERE 1 = 1
+      WHERE is_from_square = 1 
+        AND available_at_location = 1 
+        AND is_visible = 1
     `).all() as any[];
 
     // Shows (only published or with sensible flags; search will re-filter)
@@ -109,6 +111,43 @@ const loadData = () => {
 };
 
 // Calculate relevance score based on match quality
+// Simple string similarity function (Levenshtein distance)
+const calculateSimilarity = (str1: string, str2: string): number => {
+  const matrix = [];
+  const len1 = str1.length;
+  const len2 = str2.length;
+
+  if (len1 === 0) return len2;
+  if (len2 === 0) return len1;
+
+  // Initialize matrix
+  for (let i = 0; i <= len2; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= len1; j++) {
+    matrix[0][j] = j;
+  }
+
+  // Fill matrix
+  for (let i = 1; i <= len2; i++) {
+    for (let j = 1; j <= len1; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+
+  const distance = matrix[len2][len1];
+  const maxLen = Math.max(len1, len2);
+  return (maxLen - distance) / maxLen; // Return similarity ratio (0-1)
+};
+
 const calculateRelevance = (query: string, text: string, fieldType: 'title' | 'content' | 'metadata'): number => {
   const queryLower = query.toLowerCase();
   const textLower = text.toLowerCase();
@@ -143,15 +182,34 @@ const calculateRelevance = (query: string, text: string, fieldType: 'title' | 'c
   const textWords = textLower.split(/\s+/);
   
   let wordMatches = 0;
-  queryWords.forEach(word => {
-    if (textWords.some(textWord => textWord.includes(word))) {
+  let bestSimilarity = 0;
+  
+  queryWords.forEach(queryWord => {
+    // Check for partial matches
+    if (textWords.some(textWord => textWord.includes(queryWord))) {
       wordMatches++;
     }
+    
+    // Check for fuzzy matches (similarity-based)
+    textWords.forEach(textWord => {
+      if (queryWord.length > 2 && textWord.length > 2) {
+        const similarity = calculateSimilarity(queryWord, textWord);
+        if (similarity > bestSimilarity) {
+          bestSimilarity = similarity;
+        }
+      }
+    });
   });
   
   if (wordMatches > 0) {
     const matchRatio = wordMatches / queryWords.length;
     return Math.floor(matchRatio * 50) + (fieldType === 'title' ? 20 : 0);
+  }
+  
+  // Fuzzy match scoring - if similarity is high enough, give it some points
+  if (bestSimilarity > 0.4) {
+    const baseScore = Math.floor(bestSimilarity * 40);
+    return baseScore + (fieldType === 'title' ? 25 : fieldType === 'metadata' ? 20 : 15);
   }
   
   return 0;
