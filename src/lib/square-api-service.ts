@@ -411,6 +411,7 @@ export async function fetchProductsFromSquareWithRateLimit(): Promise<(StoreProd
         
         return {
           id: variation.id,
+          squareId: variation.id, // ADD MISSING SQUARE ID!
           title: item.itemData.name || 'No title',
           price: price,
           description: description.replace(/\[HIDDEN FROM STORE\]|\[PREORDER\]/g, '').trim(),
